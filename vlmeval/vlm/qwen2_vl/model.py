@@ -265,7 +265,7 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
 
         gpu_mems = get_gpu_memory()
         max_gpu_mem = max(gpu_mems) if gpu_mems != [] else -1
-        assert max_gpu_mem > 0
+        # assert max_gpu_mem > 0
         self.use_vllm = kwargs.get('use_vllm', False)
         self.use_lmdeploy = kwargs.get('use_lmdeploy', False)
         self.limit_mm_per_prompt = VLLM_MAX_IMAGE_INPUT_NUM
