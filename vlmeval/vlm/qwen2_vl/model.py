@@ -14,6 +14,13 @@ from .prompt import Qwen2VLPromptMixin
 from ...smp import get_gpu_memory, listinstr
 from ...dataset import DATASET_MODALITY
 
+# Yang Shucheng Tag
+import yaml
+import shutil
+import requests
+import re
+import time
+
 VLLM_MAX_IMAGE_INPUT_NUM = 24
 
 
@@ -170,6 +177,11 @@ CHAT_TEMPLATE = "{% set image_count = namespace(value=0) %}{% set video_count = 
 
 UNTIL = ["<|diff_marker|>"]
 
+# Yang Shucheng Tag
+DEBUG = False
+def dprint(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
 
 class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
     INSTALL_REQ = False
@@ -192,6 +204,8 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         post_process: bool = False,  # if True, will try to only extract stuff in the last \boxed{}.
         verbose: bool = False,
         use_audio_in_video: bool = False,
+        # Yang Shucheng Tag
+        code_mode : bool = True,
         **kwargs,
     ):
         super().__init__(use_custom_prompt=use_custom_prompt)
@@ -231,7 +245,8 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
                 raise err
             MODEL_CLS = Qwen2_5OmniForConditionalGeneration
             self.processor = Qwen2_5OmniProcessor.from_pretrained(model_path)
-        elif listinstr(['2.5', '2_5', 'qwen25', 'mimo'], model_path.lower()):
+        # Yang Shucheng Tag
+        elif listinstr(['ysc', '2.5', '2_5', 'qwen25', 'mimo'], model_path.lower()):
             from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
             MODEL_CLS = Qwen2_5_VLForConditionalGeneration
             self.processor = AutoProcessor.from_pretrained(model_path)
@@ -287,10 +302,28 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
             torch.cuda.set_device(0)
             self.device = 'cuda'
         else:
+            # self.model = MODEL_CLS.from_pretrained(
+            #     model_path, torch_dtype='auto', device_map="auto", attn_implementation='flash_attention_2'
+            # )
+            # Yang Shucheng Tag
             self.model = MODEL_CLS.from_pretrained(
-                model_path, torch_dtype='auto', device_map="auto", attn_implementation='flash_attention_2'
+                model_path, torch_dtype='auto', device_map="auto", attn_implementation='sdpa'
             )
             self.model.eval()
+        
+        # Yang Shucheng Tag
+        self.code_mode = code_mode
+        self.sandbox_url = 'http://10.153.51.195:8080/api/sandbox/execute'
+        self.prompt_template_yaml_path = '/nfs/data8/liao/syang/8compass/prompt_template.yaml'
+        
+        with open(self.prompt_template_yaml_path, "r") as stream:
+                conf = yaml.safe_load(stream)
+        
+        self.active_tools, self.filtered_meta = self.load_tool_data(conf)
+        self.tool_list = ", ".join(self.active_tools)
+        self.prompt_template = conf.get("prompt_template", {})
+        self.code_prompt_template = conf.get("code_prompt_template", {})
+        self.temp_image_folder = '/nfs/data8/liao/syang/8compass/temp_img_folder'
 
         torch.cuda.empty_cache()
 
@@ -612,13 +645,220 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
             print(f'\033[32m{generated_text}\033[0m')
         return generated_text
 
-    def generate_inner(self, message, dataset=None):
-        if self.use_vllm:
-            return self.generate_inner_vllm(message, dataset=dataset)
-        elif self.use_lmdeploy:
-            return self.generate_inner_lmdeploy(message, dataset=dataset)
+    # Yang Shucheng Tag
+    # load selected tooldata from prompt yaml file        
+    def load_tool_data(self, conf):
+        # --- Tool Metadata Filtering Logic ---
+        active_tool_names = conf.get("available_tools", []) # Get the list from YAML
+        full_toolbox_metadata = conf.get("toolbox_metadata", {})
+
+        # Create a dictionary containing only the metadata for active tools
+        filtered_metadata_dict = {
+            tool_name: full_toolbox_metadata[tool_name]
+            for tool_name in active_tool_names
+            if tool_name in full_toolbox_metadata
+        }
+
+        # Warn for missing tools
+        for tool_name in active_tool_names:
+            if tool_name not in full_toolbox_metadata:
+                print(f"Warning: Tool '{tool_name}' listed in available_tools but not found in toolbox_metadata.")
+
+        return active_tool_names, filtered_metadata_dict
+    
+    # Yang Shucheng Tag
+    import torch.distributed as dist
+    def generate_inner_yangshucheng(self, message, dataset=None):
+        if listinstr(['omni'], self.model_path.lower()):
+            try:
+                from qwen_omni_utils import process_mm_info
+            except Exception as err:
+                logging.critical("qwen_omni_utils not found, please install it via 'pip install qwen-omni-utils[decord]'")  # noqa: E501
+                raise err
         else:
-            return self.generate_inner_transformers(message, dataset=dataset)
+            try:
+                from qwen_vl_utils import process_vision_info
+            except Exception as err:
+                logging.critical("qwen_vl_utils not found, please install it via 'pip install qwen-vl-utils'")  # noqa: E501
+                raise err
+
+        # some prepare work before cleaning folder
+        try:
+            rank = dist.get_rank()
+        except Exception:
+            rank = int(os.environ.get("LOCAL_RANK", os.environ.get("RANK", 0)))
+        rank_folder = os.path.join(self.temp_image_folder, f"rank_{rank}")
+
+        # 这里要用自定义的模板构造message
+        messages = []
+        content = self._prepare_content(message, dataset=dataset)
+        # content is a list of dicts, each dict has keys: ['type', 'value']
+        
+        # make conversation here
+        question_chunks = []
+        image_paths = []
+        # 清空文件夹 self.temp_image_folder
+        if os.path.exists(rank_folder):
+            shutil.rmtree(rank_folder)
+        os.makedirs(rank_folder, exist_ok=True)
+        
+        final_content = []
+        img_idx = 0
+
+        for item in content:
+            if item['type'] == 'text':
+                question_chunks.append(item['text'])
+                dprint(f"【DEBUG】question_chunks: {question_chunks}")
+            elif item['type'] == 'image':
+                # 这里需要将图片下载到本地 self.temp_image_folder, 然后将绝对路径添加到image_paths
+                # 下载或复制图片到本地 self.temp_image_folder
+                img_src = item['image']
+                # 如果是 file:// 协议，或直接是本地相对/绝对路径，就复制
+                if img_src.startswith('file://') or not img_src.startswith(('http://','https://')):
+                    # 去掉 file:// 前缀
+                    src_path = img_src.replace('file://', '')
+                    # 如果是相对路径，转换为工作目录下的绝对路径
+                    if not os.path.isabs(src_path):
+                        src_path = os.path.abspath(src_path)
+                    base_name = f"idx_{img_idx}_{os.path.basename(src_path)}"
+                    img_idx += 1
+                    local_path = os.path.join(rank_folder, base_name)
+                    shutil.copy(src_path, local_path)
+                else:
+                    # HTTP(S) 下载
+                    resp = requests.get(img_src, timeout=30)
+                    base_name = f"idx_{img_idx}_{os.path.basename(img_src)}"
+                    img_idx += 1
+                    local_path = os.path.join(rank_folder, base_name)
+                    with open(local_path, 'wb') as f:
+                        f.write(resp.content)
+                image_paths.append(local_path)
+                dprint(f"【DEBUG】image_paths: {image_paths}")
+
+                final_content.append(item)
+            elif item['type'] == 'video' or item['type'] == 'audio':
+                final_content.append(item)
+            else:
+                raise ValueError(f"Invalid message type: {item['type']}, {item}")
+        question = " ".join(question_chunks)
+        # replace template
+        keywords = {
+            "question": question,
+            "image_paths": ", ".join(image_paths),
+            "available_tools": self.tool_list,
+            "toolbox_metadata": self.filtered_meta,
+        }
+        if self.code_mode:
+            formatted = self.code_prompt_template.format(**keywords)
+        else:
+            formatted = self.prompt_template.format(**keywords)
+        dprint(f"\n【DEBUG/】formatted:\n{formatted}\n【/DEBUG】\n")
+        final_content.append({
+            "type": "text",
+            "text": formatted
+        })
+        
+        #define our own system prompt
+        if self.code_mode:
+            sys_prompt = (
+                "You are an expert AI assistant that generates Python code to solve problems using a given set of tools. Your task is to write a Python script that answers a user's question."
+                "Your response MUST STRICTLY be a single Python code block enclosed in `<code>` and `</code>` tags."
+                )
+            messages.append({'role': 'system', 'content': sys_prompt})
+        messages.append({'role': 'user', 'content': final_content})
+        # end of conversation construction 
+        
+        if self.verbose:
+            print(f'\033[31m{messages}\033[0m')
+
+        text = self.processor.apply_chat_template([messages], tokenize=False, add_generation_prompt=True)
+        if listinstr(['omni'], self.model_path.lower()):
+            audios, images, videos = process_mm_info([messages], use_audio_in_video=self.use_audio_in_video)
+            inputs = self.processor(text=text, images=images,audio=audios, videos=videos, padding=True, return_tensors='pt',use_audio_in_video=self.use_audio_in_video)  # noqa: E501
+        else:
+            images, videos = process_vision_info([messages])
+            inputs = self.processor(text=text, images=images, videos=videos, padding=True, return_tensors='pt')  # noqa: E501
+        inputs = inputs.to('cuda')
+
+        if listinstr(['omni'], self.model_path.lower()):
+            self.generate_kwargs['use_audio_in_video'] = self.use_audio_in_video
+            self.generate_kwargs['return_audio'] = False
+        generated_ids = self.model.generate(
+            **inputs,
+            **self.generate_kwargs,
+        )
+        generated_ids = [
+            output_ids[len(input_ids):] for input_ids, output_ids in zip(inputs.input_ids, generated_ids)
+        ]
+        out = self.processor.tokenizer.batch_decode(
+            generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        )
+        response = out[0]
+
+        dprint(f"\n【DEBUG/】response:\n{response}\n【/DEBUG】\n")
+
+        # todo 如果检测到到response含有<answer></answer>，则直接提取中间的内容作为response
+        # todo 如果检测到到response含有<code></code>，则提取中间的内容，发送给sandbox执行，然后返回
+        # 如果sandbox返回结果字典中result的值为None，则直接返回"None"字样
+        # 如果sandbox返回结果字典中result的值不为None，则直接返回result的值作为response    
+        # todo 如果检测到response含有<answer></answer>，则直接提取中间的内容作为response
+        answer_found = False
+        m = re.search(r'<answer>(.*?)</answer>', response, re.S)
+        if m:
+            answer_found = True
+            response = m.group(1).strip()
+
+        code_found = False
+        if not answer_found:
+            # todo 如果检测到response含有<code></code>，则提取中间的内容，发送给sandbox执行，然后返回
+            m = re.search(r'<code>(.*?)</code>', response, re.S)
+            if m:
+                code_found = True
+                code_to_exec = m.group(1)
+                payload = {
+                    "code": code_to_exec,
+                    "timeout": 300,
+                    "q_aid": f"qa_{int(time.time())}"
+                }
+                resp = requests.post(self.sandbox_url, json=payload, timeout=payload.get('timeout', 300)+15)
+                result_data = resp.json()
+                exec_result = result_data.get('result')
+                response = "None" if exec_result is None else exec_result
+
+        if not answer_found and not code_found:
+            response = "[FAILED TO GENERATE ANSWER]"
+        if self.post_process:
+            resp = response.split('\\boxed{')[-1]
+            lt = len(resp)
+            counter, end = 1, None
+            for i in range(lt):
+                if resp[i] == '{':
+                    counter += 1
+                elif resp[i] == '}':
+                    counter -= 1
+                if counter == 0:
+                    end = i
+                    break
+                elif i == lt - 1:
+                    end = lt
+                    break
+            if end is not None:
+                response = resp[:end]
+
+        if self.verbose:
+            print(f'\033[32m{response}\033[0m')
+        return response
+
+    
+    # Yang Shucheng Tag
+    def generate_inner(self, message, dataset=None):
+        return self.generate_inner_yangshucheng(message, dataset=dataset)
+        # if self.use_vllm:
+        #     return self.generate_inner_vllm(message, dataset=dataset)
+        # elif self.use_lmdeploy:
+        #     return self.generate_inner_lmdeploy(message, dataset=dataset)
+        # else:
+        #     return self.generate_inner_transformers(message, dataset=dataset)
 
 
 class Qwen2VLChatAguvis(Qwen2VLChat):

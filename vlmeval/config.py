@@ -1111,6 +1111,7 @@ hawkvl_series = {
     )
 }
 
+# YANG
 qwen2vl_series = {
     "Qwen-VL-Max-0809": partial(
         Qwen2VLAPI,
@@ -1193,6 +1194,7 @@ qwen2vl_series = {
         min_pixels=1280 * 28 * 28,
         max_pixels=16384 * 28 * 28,
     ),
+    # SHUCHENG
     "Qwen2.5-VL-3B-Instruct": partial(
         Qwen2VLChat,
         model_path="Qwen/Qwen2.5-VL-3B-Instruct",
@@ -1206,6 +1208,15 @@ qwen2vl_series = {
         min_pixels=1280 * 28 * 28,
         max_pixels=16384 * 28 * 28,
         use_custom_prompt=False,
+    ),
+    # SHUCHENG
+    "Qwen2.5-VL-7B-Tool-Code": partial(
+        Qwen2VLChat,
+        model_path="ysc0034/my-vl-checkpoint",
+        min_pixels=1280 * 28 * 28,
+        max_pixels=16384 * 28 * 28,
+        use_custom_prompt=False,
+        code_mode=True,
     ),
     "Qwen2.5-VL-7B-Instruct": partial(
         Qwen2VLChat,
