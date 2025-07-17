@@ -1,20 +1,27 @@
 prompt_template: |
-  {question}. Generate Python program within <code></code> tags to answer question based on given tools module. The output of the program is used to answer the question.
-  
-  Feel free to select and combine the tools that are most suitable for solving the task.
-  Available Tools List:  {available_tools}
-  Tools Metadata(Dict):  {toolbox_metadata}
-
-  Details and Rules:
-  1. Use correct image paths: `{image_paths}`.
-  2. Use the `tool_module_name` and `tool_class_name` fields from each tool's metadata to import the correct module and class.
-  3. Assign the final answer for question to a variable named `final_result` within the Python code. 
+  {question}. Generate your answer to the question within <answer></answer> tags.
 
   **Important instructions**:
-  1. Enclose your Python program in <code></code> tags, and do not output the interpreter execution result `(<interpreter></interpreter>)` yourself.
-  2. Write your thinking process in the comments of the code to help you code, but do not output any other text outside the <code></code> tags.
+  You MUST enclose your final answer in <answer></answer> tags.
+  If necessary, write your thinking process OUTSIDE the tags to help you answer correctly.
   
-  Now generate the code to answer the question based on the available tools and image paths.:
+  PLEASE FOLLOW THE **ANSWER FORMAT** TO OUTPUT:
+  Your answer MUST be wrapped in `<answer></answer>` tags. Starting with `<answer>` AND ending with `</answer>`.
+  Right example:
+  question: How many people are there in the image?
+  your output: <answer>3</answer>
+
+  WRONG examples to avoid:
+  question: How many people are there in the image?
+  your output: <answer>3}
+
+  question: How many people are there in the image?
+  your output: ```answer3```
+
+  question: How many people are there in the image?
+  your output: >3</answer>
+
+  Now generate the answer to the question {question}:
 
 
 code_prompt_template: |
