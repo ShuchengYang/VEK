@@ -13,7 +13,7 @@ prompt_template: |
 
   WRONG examples to avoid:
   question: How many people are there in the image?
-  your output: <answer>3}
+  your output: <answer>3</
 
   question: How many people are there in the image?
   your output: ```answer3```
