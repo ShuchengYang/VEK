@@ -19,7 +19,12 @@ import yaml
 import shutil
 import requests
 import re
-import time
+import time 
+LRZ_MODE = True
+from pathlib import Path
+# 根据 model.py 的位置，向上回溯到项目根目录
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+# YSCE
 
 VLLM_MAX_IMAGE_INPUT_NUM = 24
 
@@ -182,6 +187,7 @@ DEBUG = False
 def dprint(*args, **kwargs):
     if DEBUG:
         print(*args, **kwargs)
+# YSCE
 
 class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
     INSTALL_REQ = False
@@ -206,6 +212,7 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         use_audio_in_video: bool = False,
         # Yang Shucheng Tag
         code_mode : bool = True,
+        # YSCE
         **kwargs,
     ):
         super().__init__(use_custom_prompt=use_custom_prompt)
@@ -247,6 +254,7 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
             self.processor = Qwen2_5OmniProcessor.from_pretrained(model_path)
         # Yang Shucheng Tag
         elif listinstr(['ysc', '2.5', '2_5', 'qwen25', 'mimo'], model_path.lower()):
+        # YSCE
             from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
             MODEL_CLS = Qwen2_5_VLForConditionalGeneration
             self.processor = AutoProcessor.from_pretrained(model_path)
@@ -309,12 +317,17 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
             self.model = MODEL_CLS.from_pretrained(
                 model_path, torch_dtype='auto', device_map="auto", attn_implementation='sdpa'
             )
+            # YSCE
             self.model.eval()
         
         # Yang Shucheng Tag
         self.code_mode = code_mode
         self.sandbox_url = 'http://10.153.51.195:8080/api/sandbox/execute'
-        self.prompt_template_yaml_path = '/nfs/data8/liao/syang/8compass/prompt_template.yaml'
+        
+        if LRZ_MODE:
+            self.prompt_template_yaml_path = PROJECT_ROOT / 'yangshucheng-compass' / 'prompt_template.yaml'
+        else:
+            self.prompt_template_yaml_path = '/nfs/data8/liao/syang/8compass/prompt_template.yaml'
         
         with open(self.prompt_template_yaml_path, "r") as stream:
                 conf = yaml.safe_load(stream)
@@ -323,8 +336,12 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         self.tool_list = ", ".join(self.active_tools)
         self.prompt_template = conf.get("prompt_template", {})
         self.code_prompt_template = conf.get("code_prompt_template", {})
-        self.temp_image_folder = '/nfs/data8/liao/syang/8compass/temp_img_folder'
-
+        
+        if LRZ_MODE:
+            self.temp_image_folder = PROJECT_ROOT / 'yangshucheng-compass' / 'temp-img-folder'
+        else:
+            self.temp_image_folder = '/nfs/data8/liao/syang/8compass/temp_img_folder'
+        # YSCE
         torch.cuda.empty_cache()
 
     def _prepare_content(self, inputs: list[dict[str, str]], dataset: str | None = None) -> list[dict[str, str]]:
