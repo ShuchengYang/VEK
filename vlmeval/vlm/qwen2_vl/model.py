@@ -837,11 +837,13 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
                     "timeout": 300,
                     "q_aid": f"qa_{int(time.time())}"
                 }
-                resp = requests.post(self.sandbox_url, json=payload, timeout=payload.get('timeout', 300)+15)
-                result_data = resp.json()
-                exec_result = result_data.get('result')
-                response = "None" if exec_result is None else exec_result
-
+                try:
+                    resp = requests.post(self.sandbox_url, json=payload, timeout=payload.get('timeout', 300)+15)
+                    result_data = resp.json()
+                    exec_result = result_data.get('result')
+                    response = "None" if exec_result is None else exec_result
+                except Exception:
+                    response = "[FAILED TO GENERATE ANSWER, SANDBOX SERVICE ERROR]"
         if not answer_found and not code_found:
             response = "[FAILED TO GENERATE ANSWER]"
         if self.post_process:
