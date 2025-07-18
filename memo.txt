@@ -1,0 +1,6 @@
+run on marajo:
+cd into vek
+
+DS=MMStar ./run_on_marajo.sh
+DS=MMStar CODE=true ./run_on_marajo.sh
+
