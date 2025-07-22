@@ -15,13 +15,18 @@ class Spatial457(ImageBaseDataset):
     TYPE = "VQA"
     # When ROBUST is True, if the models does not follow the format, all of the response will be treated as answers.
     ROBUST = True
+    MINI = True
 
     DATASET_URL = {
         "Spatial457": "http://opencompass.openxlab.space/utils/VLMEval/Spatial457.tsv",
+        "Spatial457_TEST": "https://huggingface.co/datasets/ysc0034/spatial457_test/raw/main/Spatial457_TEST.tsv",
+        "Spatial457_MINI": "https://huggingface.co/datasets/ysc0034/spatial457_mini/raw/main/Spatial457_MINI.tsv",
     }
 
     DATASET_MD5 = {
-        'Spatial457': "1f24f5a7b2cadc3d33a8a66ecf92ca68"
+        'Spatial457': "1f24f5a7b2cadc3d33a8a66ecf92ca68",
+        'Spatial457_TEST': "a7697250ea35a29b8e60463e567a6db0",
+        'Spatial457_MINI': "7d3a6fb4f45d5173f384873266a72fd8",
     }
 
     def __init__(self, *args, **kwargs):
@@ -67,35 +72,40 @@ class Spatial457(ImageBaseDataset):
             objects = []
 
             # parse the answer
-            pred_try_1 = re.search(r"Answer': '(.*?)'", line["prediction"])
-            pred_try_2 = re.search(r'Answer": "(.*?)"', line["prediction"])
-            pred_try_3 = re.search(r"Answer': (\d)", line["prediction"])
+            if not self.MINI:
+                pred_try_1 = re.search(r"Answer': '(.*?)'", line["prediction"])
+                pred_try_2 = re.search(r'Answer": "(.*?)"', line["prediction"])
+                pred_try_3 = re.search(r"Answer': (\d)", line["prediction"])
 
-            if pred_try_1:
-                pred = pred_try_1.group(1)
-            elif pred_try_2:
-                pred = pred_try_2.group(1)
-            elif pred_try_3:
-                pred = pred_try_3.group(1)
-            else:
-                if self.ROBUST:
-                    pred = line['prediction']
+                if pred_try_1:
+                    pred = pred_try_1.group(1)
+                elif pred_try_2:
+                    pred = pred_try_2.group(1)
+                elif pred_try_3:
+                    pred = pred_try_3.group(1)
                 else:
-                    pred = self.dataset_utils.get_random_answer(answers)
-                all_results["format_error"] += 1
+                    if self.ROBUST:
+                        pred = line['prediction']
+                    else:
+                        pred = self.dataset_utils.get_random_answer(answers)
+                    all_results["format_error"] += 1
+            
 
-            reasoning_try_1 = re.search(r"Reasoning': '(.*?)'", line["prediction"])
-            reasoning_try_2 = re.search(r'Reasoning": "(.*?)"', line["prediction"])
+                reasoning_try_1 = re.search(r"Reasoning': '(.*?)'", line["prediction"])
+                reasoning_try_2 = re.search(r'Reasoning": "(.*?)"', line["prediction"])
 
-            if reasoning_try_1:
-                reasoning = reasoning_try_1.group(1)
-            elif reasoning_try_2:
-                reasoning = reasoning_try_2.group(1)
-            else:
-                if self.ROBUST:
-                    reasoning = "Format Error. All of the resposne as the answer."
+                if reasoning_try_1:
+                    reasoning = reasoning_try_1.group(1)
+                elif reasoning_try_2:
+                    reasoning = reasoning_try_2.group(1)
                 else:
-                    reasoning = "Format Error. Guess a random answer."
+                    if self.ROBUST:
+                        reasoning = "Format Error. All of the resposne as the answer."
+                    else:
+                        reasoning = "Format Error. Guess a random answer."
+            else:
+                pred = line['prediction']
+                reasoning = 'Skipped'
 
             correct = self.dataset_utils.is_correct(answers, pred)
 
@@ -142,8 +152,10 @@ class Spatial457(ImageBaseDataset):
         msgs = super().build_prompt(line)
 
         set_type = line["category"]
-
-        instruction_1, instruction_2 = self.build_subtask_instruction(set_type)
+        if self.MINI:
+            instruction_1, instruction_2 = self.build_subtask_instruction_ysc_ver(set_type)
+        else:
+            instruction_1, instruction_2 = self.build_subtask_instruction(set_type)
 
         msgs.insert(0, {"type": "text", "value": instruction_1})
         msgs.append({"type": "text", "value": instruction_2})
@@ -208,5 +220,53 @@ class Spatial457(ImageBaseDataset):
         instruction_2 += (
             "Write your response into this json template: " "{'Reasoning': '<your reasons>', 'Answer': '<Your answer>'}"
         )
+        return instruction_1, instruction_2
+    
+    def build_subtask_instruction_ysc_ver(self, level):
+
+        task_map = {
+            "L1_single": (
+                "Please analyze the images, identify attributes of the objects, "
+                "and then determine the answer to the question.\n"
+            ),
+            "L2_objects": (
+                "Please analyze the images, identify attributes of multiple objects, "
+                "and then determine the answer to the question.\n"
+            ),
+            "L3_2d_spatial": (
+                "Please analyze the images, identify attributes of multiple objects and their spatial relationship from 2D "
+                "projected camera view, and then determine the answer to the question.\n"
+            ),
+            "L4_occ": (
+                "Please analyze the images, identify attributes of multiple objects and their occlusion relationships, and "
+                "then determine the answer to the question.\n"
+            ),
+            "L4_pose": (
+                "Please analyze the images, identify attributes of multiple objects and their facing direction in 3D space "
+                "from the camera view, and then determine the answer to the question.\n"
+            ),
+            "L5_6d_spatial": (
+                "Please analyze the images, identify attributes of multiple objects and their spatial relationship from "
+                "objects’ perspective in 3D space, and then determine the answer to the question.\n"
+            ),
+            "L5_collision": (
+                "Please analyze the images, identify attributes of multiple objects and their potential collision given the "
+                "assumption of moving direction in 3D space, and then determine the answer to the question.\n"
+            ),
+        }
+
+        instruction_1 = task_map.get(level, "")
+
+        instruction_2 = (
+            "Each object in the image has a "
+            "shape (e.g., 'airliner'), a size (only can be 'small' or 'large'), a color (e.g. 'blue'). The size of "
+            "the object is either 'small' or 'large'. The color of the object is one of the following: 'gray', "
+            "'blue', 'purple', 'brown', 'green', 'cyan', 'red', 'yellow'. The direction of the object is one of the "
+            "following: 'left', 'right', 'front', 'back'.\n\n"
+            "Second, give the answer based on the reasoning process. The answer should only be (1) a phrase chosen "
+            "from the following options: {}, or (2) an integer [0-10] when asked for 'How many' or 'What is the "
+            "number of', or (3) 'Yes' or 'No' when asked for 'Is there'. If you think there are no possible answers "
+            "or the question is not clear, choose the best answer that fits the question.\n\n"
+        ).format(self.dataset_utils.all_answers())
 
         return instruction_1, instruction_2
