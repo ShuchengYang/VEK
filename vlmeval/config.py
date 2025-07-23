@@ -1111,7 +1111,52 @@ hawkvl_series = {
     )
 }
 
-# YANG
+#yang shucheng
+import yaml
+import os
+from pathlib import Path
+
+def find_project_root_by_config(config_filename="general_config.yaml"):
+    """
+    通过查找指定的配置文件，向上遍历目录树来确定项目根目录。
+
+    Args:
+        config_filename (str): 项目根目录下的配置文件名，默认为 'general_config.yaml'。
+
+    Returns:
+        pathlib.Path: 项目根目录的Path对象。如果找不到，则返回当前工作目录。
+    """
+    # 从当前文件的绝对路径开始
+    current_path = Path(__file__).resolve()
+
+    # 向上遍历所有父目录
+    for parent in current_path.parents:
+        if (parent / config_filename).exists():
+            return parent
+    
+    # 如果从当前文件路径向上没有找到，尝试从当前工作目录向上遍历
+    # 这在某些运行环境下（比如从子目录运行脚本）可能会有用
+    current_working_dir = Path(os.getcwd()).resolve()
+    for parent in current_working_dir.parents:
+        if (parent / config_filename).exists():
+            return parent
+
+    # 如果所有尝试都失败了，警告并返回当前工作目录
+    print(f"Warning: Project root (marked by '{config_filename}') not found. "
+          f"Defaulting to current working directory: {current_working_dir}")
+    return current_working_dir
+PROJECT_ROOT = find_project_root_by_config()
+general_config_yaml_path = PROJECT_ROOT / "general_config.yaml"
+with open(general_config_yaml_path, "r") as stream:
+    genconf = yaml.safe_load(stream)
+DEBUG  = genconf.get("debug", False)
+def dprint(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
+MODEL_PATH = genconf.get('ckpt', "Qwen/Qwen2.5-VL-7B-Instruct")
+dprint(f"【DEBUG config.py】debug mode: {DEBUG}")
+dprint(f"【DEBUG config.py】using model: {MODEL_PATH}")
+
 qwen2vl_series = {
     "Qwen-VL-Max-0809": partial(
         Qwen2VLAPI,
@@ -1211,7 +1256,7 @@ qwen2vl_series = {
     # SHUCHENG
     "Qwen2.5-VL-7B-Tool-Code": partial(
         Qwen2VLChat,
-        model_path="ysc0034/my-vl-checkpoint",
+        model_path=MODEL_PATH,
         min_pixels=1280 * 28 * 28,
         max_pixels=16384 * 28 * 28,
         use_custom_prompt=False,
