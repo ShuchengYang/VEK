@@ -81,8 +81,8 @@ def dprint(*args, **kwargs):
         print(*args, **kwargs)
 USE_MMSTAR_FULL = genconf.get("use_full", True)
 if USE_MMSTAR_FULL:
-    MMSTAR_LINK = "https://huggingface.co/datasets/ysc0034/mmstar_mini/raw/main/MMStar_MINI.tsv"
-    MMSTAR_MD5 = "4094feac638754f39f3e2e6d1b8b9670"
+    MMSTAR_LINK = "https://huggingface.co/datasets/ysc0034/mmstar_500/resolve/main/MMStar_500.tsv"
+    MMSTAR_MD5 = "62f5614a13f574ade44804ce43bc7dde"
 else:
     MMSTAR_LINK = "https://huggingface.co/datasets/ysc0034/mmstar_test/raw/main/MMStar_TEST.tsv"
     MMSTAR_MD5 = "828007fd937a15e090e9de89ee382242"
