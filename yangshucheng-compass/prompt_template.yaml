@@ -67,12 +67,11 @@ code_prompt_template: |
     
   Now generate the code to answer the question based on the available tools and image paths.:
 
-
 # available_tools for usage
 available_tools:
   - Object_Detector_Tool
   - Text_Detector_Tool
-  #- Letter_Detector_Tool
+  # #- Letter_Detector_Tool
   - Depth_Estimator_Tool
   #- Advanced_Object_Detector_Tool
   - Segmenter_Tool
@@ -143,8 +142,11 @@ toolbox_metadata:
       detail: "int - The level of detail in the output. Set to 0 for simpler output, 1 for detailed output."
     output_types: >
       list - A list of detected text blocks.
-      Each block contains the four anchor coordinates of the bounding box, the recognized text, and the confidence score (float).
+      Detailed output: Each block contains the four anchor coordinates of the bounding box, the recognized text, and the confidence score (float).
       e.g. [[[[x0, y0], [x1, y1], [x2, y2], [x3, y3]], 'Detected text', score], ...].
+      Simpler output: Each block contains only the recognized text.
+      e.g. ['text1', 'text2', ...].
+      Nothing detected: empty list [].
       # Note: The bounding box is defined as 4 coordinates of points: [top-left, top-right, bottom-right, bottom-left].
     demo_commands:
       command: |
@@ -210,14 +212,18 @@ toolbox_metadata:
     input_types:
       prompt_type: "str: 'points' or 'boxes'"
       input_prompts: >
-        list[dict] - list of dicts each with an `image_path` key(str) and a prompt key(str) based on the prompt_type.
-        For the 'points' prompt type, prompt key should be 'input_points', value is a list of coordinates with at least two points (i.e., [[x1, y1],[x2, y2]]).
-        For the 'boxes' prompt type, prompt key should be 'input_box', value is a list of bounding boxes in `xyxy` format (i.e., [xmin, ymin, xmax, ymax]).
-      model_size: "str: SAM2 model size, e.g., 'base_plus' or 'small' (default: 'small')."
+        list[dict] — each dict corresponds to one image.
+        It must include:
+        - 'image_path': str — path to the image
+        - A prompt key ('input_box' or 'input_points'), depending on the prompt_type:
+          - 'input_box': list[list[int]] — a list of one or more bounding boxes in [xmin, ymin, xmax, ymax] format
+          - 'input_points': list[list[int]] — a list of at least two points [x, y]
+          model_size: "str: SAM2 model size, e.g., 'base_plus' or 'small' (default: 'small')."
     output_types: >
       masks: Dict[str ,Dict[str, np.ndarray]] - The output is a dictionary where each key is the path(string) to a input image file.
       Each value is still a dictionary with: 
-      'mask': a NumPy array mask of shape (O, 1, H, W), where `O` denotes the number of objects segmented from the corresponding image, based on its visual prompt type. Each segmented object map matches the original image in height and width,
+      masks: NumPy array with shape (O,1,H,W), where `O` is the number of objects segmented from the image. The value of `O` depends on the visual-prompt type—typically, a single prompt produces one object mask.
+      Each segmented object map matches the original image in height and width;
       'npy_path': a string path to the saved mask in `npy` file.
       e.g. {'/path/to/image_file': {'mask': <numpy array with shape (O, 1, H, W)>, 'npy_path': 'path/to/saved_mask_npy'},...}
       # Note that in these output masks, pixels set to 1 represent the region of the segmented object.
@@ -225,10 +231,12 @@ toolbox_metadata:
       command: |
         segmenter_tool = Segmenter_Tool()
         masks = segmenter_tool.execute(prompt_type='boxes', input_prompts=[{'image_path': 'path/to/image1', 'input_box': [[100,150,400,500],...]}, {'image_path': 'path/to/image2', 'input_box': [[50,80,300,350],...]}], model_size='small')
+        # Note: Each image must have a unique name.
+        # Each image can receive either one or more input boxes, or at least two points as visual prompts.
       output_example: >
-        masks: {`./image1/path`: {'mask': <np.ndarray>, 'npy_path': <str>}, `./image2/path`: {'mask': <np.ndarray>, 'npy_path': <str>}}
+        masks: {`./image1/path`: {'mask': <np.ndarray>, 'npy_path': <str>}, `./image2/path`: {'mask': <np.ndarray>, 'npy_path': <str>}} 
     user_metadata:
-      Before using this tool, it is advisable to consider how to obtain the points and bounding box for the visual prompt input.
+      The resulting mask focuses on separating the **main object(s)** indicated by the visual prompt from their surrounding **background or environment** in terms of **semantic appearance or style**.
   # Matching Tool
   Matcher_Tool:
    tool_module_name: matcher
