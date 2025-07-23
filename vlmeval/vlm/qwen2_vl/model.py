@@ -24,6 +24,22 @@ LRZ_MODE = True
 from pathlib import Path
 # 根据 model.py 的位置，向上回溯到项目根目录
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+general_config_yaml_path = PROJECT_ROOT / "general_config.yaml"
+with open(general_config_yaml_path, "r") as stream:
+    genconf = yaml.safe_load(stream)
+
+
+# please check
+DEBUG  = genconf.get("debug", False)
+TEMP_IMG_FOLDER = genconf.get('sandbox_temp_img_folder', "./delete-me-sandbox-temp-img-folder") # sandbox side
+LOCAL_SMALL = genconf.get('local_temp_img_folder', "delete-me-local-temp-img-folder")
+LOCAL_TEMP_IMG_FOLDER = PROJECT_ROOT / LOCAL_SMALL
+def dprint(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
+dprint(f"【DEBUG】debug mode: {DEBUG}")
+dprint(f"【DEBUG】local temp img folder: {LOCAL_TEMP_IMG_FOLDER}")
+dprint(f"【DEBUG】sandbox temp img folder: {TEMP_IMG_FOLDER}")
 # YSCE
 
 VLLM_MAX_IMAGE_INPUT_NUM = 24
@@ -182,13 +198,6 @@ CHAT_TEMPLATE = "{% set image_count = namespace(value=0) %}{% set video_count = 
 
 UNTIL = ["<|diff_marker|>"]
 
-# Yang Shucheng Tag
-DEBUG = False
-def dprint(*args, **kwargs):
-    if DEBUG:
-        print(*args, **kwargs)
-# YSCE
-
 class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
     INSTALL_REQ = False
     INTERLEAVE = True
@@ -323,11 +332,7 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         # Yang Shucheng Tag
         self.code_mode = code_mode
         self.sandbox_url = 'http://10.153.51.195:8080/api/sandbox/execute'
-        
-        if LRZ_MODE:
-            self.prompt_template_yaml_path = PROJECT_ROOT / 'yangshucheng-compass' / 'prompt_template.yaml'
-        else:
-            self.prompt_template_yaml_path = '/nfs/data8/liao/syang/8compass/prompt_template.yaml'
+        self.prompt_template_yaml_path = PROJECT_ROOT / 'yangshucheng-compass' / 'prompt_template.yaml'
         
         with open(self.prompt_template_yaml_path, "r") as stream:
                 conf = yaml.safe_load(stream)
@@ -336,11 +341,8 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         self.tool_list = ", ".join(self.active_tools)
         self.prompt_template = conf.get("prompt_template", {})
         self.code_prompt_template = conf.get("code_prompt_template", {})
-        
-        if LRZ_MODE:
-            self.temp_image_folder = PROJECT_ROOT / 'yangshucheng-compass' / 'temp-img-folder'
-        else:
-            self.temp_image_folder = '/nfs/data8/liao/syang/8compass/temp_img_folder'
+        self.temp_image_folder = TEMP_IMG_FOLDER
+        self.local_temp_image_folder = LOCAL_TEMP_IMG_FOLDER
         # YSCE
         torch.cuda.empty_cache()
 
@@ -704,7 +706,10 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
             rank = dist.get_rank()
         except Exception:
             rank = int(os.environ.get("LOCAL_RANK", os.environ.get("RANK", 0)))
+        # sandbox side
         rank_folder = os.path.join(self.temp_image_folder, f"rank_{rank}")
+        #to download img
+        local_rank_folder = os.path.join(self.local_temp_image_folder, f"rank_{rank}")
 
         # 这里要用自定义的模板构造message
         messages = []
@@ -713,11 +718,16 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         
         # make conversation here
         question_chunks = []
+        
+        # for prompt construction
         image_paths = []
-        # 清空文件夹 self.temp_image_folder
-        if os.path.exists(rank_folder):
-            shutil.rmtree(rank_folder)
-        os.makedirs(rank_folder, exist_ok=True)
+        # img as payload, should use sandbox side path
+        image_payload = []
+
+        # 清空文件夹 self.local_temp_image_folder
+        if os.path.exists(local_rank_folder):
+            shutil.rmtree(local_rank_folder)
+        os.makedirs(local_rank_folder, exist_ok=True)
         
         final_content = []
         img_idx = 0
@@ -727,31 +737,39 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
                 question_chunks.append(item['text'])
                 dprint(f"【DEBUG】question_chunks: {question_chunks}")
             elif item['type'] == 'image':
-                # 这里需要将图片下载到本地 self.temp_image_folder, 然后将绝对路径添加到image_paths
-                # 下载或复制图片到本地 self.temp_image_folder
+                # 下载 / 复制到本地
                 img_src = item['image']
-                # 如果是 file:// 协议，或直接是本地相对/绝对路径，就复制
                 if img_src.startswith('file://') or not img_src.startswith(('http://','https://')):
-                    # 去掉 file:// 前缀
-                    src_path = img_src.replace('file://', '')
-                    # 如果是相对路径，转换为工作目录下的绝对路径
+                    src_path = img_src.replace('file://','')
                     if not os.path.isabs(src_path):
                         src_path = os.path.abspath(src_path)
                     base_name = f"idx_{img_idx}_{os.path.basename(src_path)}"
                     img_idx += 1
-                    local_path = os.path.join(rank_folder, base_name)
+                    local_path = os.path.join(local_rank_folder, base_name)
+                    sandbox_path = os.path.join(rank_folder, base_name)
                     shutil.copy(src_path, local_path)
                 else:
-                    # HTTP(S) 下载
                     resp = requests.get(img_src, timeout=30)
                     base_name = f"idx_{img_idx}_{os.path.basename(img_src)}"
                     img_idx += 1
-                    local_path = os.path.join(rank_folder, base_name)
-                    with open(local_path, 'wb') as f:
+                    local_path = os.path.join(local_rank_folder, base_name)
+                    sandbox_path = os.path.join(rank_folder, base_name)
+                    with open(local_path,'wb') as f:
                         f.write(resp.content)
-                image_paths.append(local_path)
-                dprint(f"【DEBUG】image_paths: {image_paths}")
 
+                # 1) 收集路径用于 prompt
+                image_paths.append(sandbox_path)
+                dprint(f"【DEBUG{img_idx}】local path: {local_path}")
+                dprint(f"【DEBUG{img_idx}】sandbox_path: {sandbox_path}")
+
+                # 2) 对本地文件做 Base64 编码，构造 payload
+                encoded, _mime = encode_image(local_path)   # 使用你已有的 encode_image 辅助
+                image_payload.append({
+                    "path": sandbox_path,
+                    "data": encoded
+                })
+
+                # 3) 原样保留 item 以便 prompt 构造
                 final_content.append(item)
             elif item['type'] == 'video' or item['type'] == 'audio':
                 final_content.append(item)
@@ -765,11 +783,13 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
             "available_tools": self.tool_list,
             "toolbox_metadata": self.filtered_meta,
         }
+        dprint(f"\n【DEBUG/】question:\n{keywords['question']}\n【/DEBUG】\n")
+        dprint(f"\n【DEBUG/】image_paths(sandbox):\n{keywords['image_paths']}\n【/DEBUG】\n")
         if self.code_mode:
             formatted = self.code_prompt_template.format(**keywords)
         else:
             formatted = self.prompt_template.format(**keywords)
-        dprint(f"\n【DEBUG/】formatted:\n{formatted}\n【/DEBUG】\n")
+        # dprint(f"\n【DEBUG/】formatted:\n{formatted}\n【/DEBUG】\n")
         final_content.append({
             "type": "text",
             "text": formatted
@@ -785,6 +805,7 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         messages.append({'role': 'user', 'content': final_content})
         # end of conversation construction 
         
+        # keep the way it is
         if self.verbose:
             print(f'\033[31m{messages}\033[0m')
 
@@ -835,7 +856,8 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
                 payload = {
                     "code": code_to_exec,
                     "timeout": 300,
-                    "q_aid": f"qa_{int(time.time())}"
+                    "q_aid": f"qa_{int(time.time())}",
+                    "images":  image_payload
                 }
                 try:
                     resp = requests.post(self.sandbox_url, json=payload, timeout=payload.get('timeout', 300)+15)
