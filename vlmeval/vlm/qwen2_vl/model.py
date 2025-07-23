@@ -19,7 +19,9 @@ import yaml
 import shutil
 import requests
 import re
-import time 
+import time
+import torch.distributed as dist 
+sample_counter=0
 LRZ_MODE = True
 from pathlib import Path
 # 根据 model.py 的位置，向上回溯到项目根目录
@@ -686,7 +688,6 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         return active_tool_names, filtered_metadata_dict
     
     # Yang Shucheng Tag
-    import torch.distributed as dist
     def generate_inner_yangshucheng(self, message, dataset=None):
         if listinstr(['omni'], self.model_path.lower()):
             try:
@@ -893,6 +894,20 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
     
     # Yang Shucheng Tag
     def generate_inner(self, message, dataset=None):
+        global sample_counter
+        sample_counter += 1
+        # guarding dist.barrier() with dist.is_initialized() is a perfectly valid way 
+        # to make sure you only do the sync when you’ve actually called init_process_group.
+        
+        # if there’s any chance this code might run in a single‑GPU or 
+        # non‑distributed context (i.e. you never did init_process_group) 
+        # then calling dist.barrier() directly will raise an exception.
+        
+        # You just need to make sure each rank’s sample_counter starts 
+        # from the same value (e.g. 0) and 
+        # that every rank calls generate_inner the same number of times.
+        if dist.is_initialized() and sample_counter % 10 == 0:
+            dist.barrier()
         return self.generate_inner_yangshucheng(message, dataset=dataset)
         # if self.use_vllm:
         #     return self.generate_inner_vllm(message, dataset=dataset)
