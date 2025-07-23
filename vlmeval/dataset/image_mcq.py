@@ -37,6 +37,59 @@ MTL_MMBench_MD5 = {
     'MMBench_dev_tr': '4fab39d501389d3d6cc90264bb708f11', 'MMBench_dev_ru': '5ba1171ff2e68f80637bf78349e402a5'
 }
 
+#yang shucheng
+import yaml
+import os
+from pathlib import Path
+
+def find_project_root_by_config(config_filename="general_config.yaml"):
+    """
+    通过查找指定的配置文件，向上遍历目录树来确定项目根目录。
+
+    Args:
+        config_filename (str): 项目根目录下的配置文件名，默认为 'general_config.yaml'。
+
+    Returns:
+        pathlib.Path: 项目根目录的Path对象。如果找不到，则返回当前工作目录。
+    """
+    # 从当前文件的绝对路径开始
+    current_path = Path(__file__).resolve()
+
+    # 向上遍历所有父目录
+    for parent in current_path.parents:
+        if (parent / config_filename).exists():
+            return parent
+    
+    # 如果从当前文件路径向上没有找到，尝试从当前工作目录向上遍历
+    # 这在某些运行环境下（比如从子目录运行脚本）可能会有用
+    current_working_dir = Path(os.getcwd()).resolve()
+    for parent in current_working_dir.parents:
+        if (parent / config_filename).exists():
+            return parent
+
+    # 如果所有尝试都失败了，警告并返回当前工作目录
+    print(f"Warning: Project root (marked by '{config_filename}') not found. "
+          f"Defaulting to current working directory: {current_working_dir}")
+    return current_working_dir
+PROJECT_ROOT = find_project_root_by_config()
+general_config_yaml_path = PROJECT_ROOT / "general_config.yaml"
+with open(general_config_yaml_path, "r") as stream:
+    genconf = yaml.safe_load(stream)
+DEBUG  = genconf.get("debug", False)
+def dprint(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
+USE_MMSTAR_FULL = genconf.get("use_full", True)
+if USE_MMSTAR_FULL:
+    MMSTAR_LINK = "https://huggingface.co/datasets/ysc0034/mmstar_mini/raw/main/MMStar_MINI.tsv"
+    MMSTAR_MD5 = "4094feac638754f39f3e2e6d1b8b9670"
+else:
+    MMSTAR_LINK = "https://huggingface.co/datasets/ysc0034/mmstar_test/raw/main/MMStar_TEST.tsv"
+    MMSTAR_MD5 = "828007fd937a15e090e9de89ee382242"
+dprint(f"【DEBUG image_mcq.py】debug mode: {DEBUG}")
+dprint(f"【DEBUG image_mcq.py】using mmstar full: {USE_MMSTAR_FULL}")
+dprint(f"【DEBUG image_mcq.py】mmstar link: {MMSTAR_LINK}")
+dprint(f"【DEBUG image_mcq.py】mmstar md5: {MMSTAR_MD5}")
 
 class ImageMCQDataset(ImageBaseDataset):
 
@@ -85,7 +138,9 @@ class ImageMCQDataset(ImageBaseDataset):
         'CCBench': 'https://opencompass.openxlab.space/utils/VLMEval/CCBench.tsv',
         'AI2D_TEST': 'https://opencompass.openxlab.space/utils/VLMEval/AI2D_TEST.tsv',
         'AI2D_TEST_NO_MASK': 'https://opencompass.openxlab.space/utils/VLMEval/AI2D_TEST_NO_MASK.tsv',
-        'MMStar': 'https://opencompass.openxlab.space/utils/VLMEval/MMStar.tsv',
+        # 'MMStar': 'https://opencompass.openxlab.space/utils/VLMEval/MMStar.tsv',
+        #yang shucheng
+        'MMStar': MMSTAR_LINK,
         'RealWorldQA': 'https://opencompass.openxlab.space/utils/VLMEval/RealWorldQA.tsv',
         'MLLMGuard_DS': 'https://opencompass.openxlab.space/utils/VLMEval/MLLMGuard_DS.tsv',
         'BLINK': 'https://opencompass.openxlab.space/utils/VLMEval/BLINK.tsv',
@@ -161,7 +216,8 @@ class ImageMCQDataset(ImageBaseDataset):
         'CCBench': 'f5dde47f24dc5a6fb6e595b409b466ac',
         'AI2D_TEST': '0f593e0d1c7df9a3d69bf1f947e71975',
         'AI2D_TEST_NO_MASK': 'fd8f463634d4fe9fbd23b876e8eea5be',
-        'MMStar': 'e1ecd2140806c1b1bbf54b43372efb9e',
+#       'MMStar': 'e1ecd2140806c1b1bbf54b43372efb9e',
+        'MMStar': MMSTAR_MD5,
         'RealWorldQA': '4de008f55dc4fd008ca9e15321dc44b7',
         'MLLMGuard_DS': '975fc0dd7119386e198c37d71e274b3f',
         'BLINK': '3b6649b6a662184ea046908e5506260e',
