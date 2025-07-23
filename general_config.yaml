@@ -1,0 +1,24 @@
+# you should install pyyaml
+
+# config.py ------------------------------------------------------------
+# model checkpoint (only one at a time)
+#grpo - 40steps
+ckpt: ysc0034/my-vl-checkpoint
+#grpo -180steps
+# ckpt: ysc0034/grpo_tools_180steps
+
+# model.py ------------------------------------------------------------
+# turn on the debug mode for moure detailed output
+debug: True
+# 设置临时存储文件的地址
+# 命名规范：{checkpoint名字}_{数据集名称|实验性质（test or run）}
+sandbox_temp_img_folder: ./grpo40_457test
+# under project root, dont start with /
+local_temp_img_folder: yangshucheng-compass/grpo40_457test
+
+
+# mmstar database (only one at a time) ------------------------------------------------------------
+# if use full = true, use the 500-sample full size mmstar dataset
+# otherwise use the 5-sample mmstar test dataset
+use_full: False
+
