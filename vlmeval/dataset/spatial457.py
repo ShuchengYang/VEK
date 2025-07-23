@@ -258,12 +258,12 @@ class Spatial457(ImageBaseDataset):
         instruction_1 = task_map.get(level, "")
 
         instruction_2 = (
-            "Each object in the image has a "
+            "\nHint 1: Each object in the image has a "
             "shape (e.g., 'airliner'), a size (only can be 'small' or 'large'), a color (e.g. 'blue'). The size of "
             "the object is either 'small' or 'large'. The color of the object is one of the following: 'gray', "
             "'blue', 'purple', 'brown', 'green', 'cyan', 'red', 'yellow'. The direction of the object is one of the "
             "following: 'left', 'right', 'front', 'back'.\n\n"
-            "Second, give the answer based on the reasoning process. The answer should only be (1) a phrase chosen "
+            "Hint 2: The answer to this question should only be (1) a phrase chosen "
             "from the following options: {}, or (2) an integer [0-10] when asked for 'How many' or 'What is the "
             "number of', or (3) 'Yes' or 'No' when asked for 'Is there'. If you think there are no possible answers "
             "or the question is not clear, choose the best answer that fits the question.\n\n"
