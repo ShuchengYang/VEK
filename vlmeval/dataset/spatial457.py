@@ -20,13 +20,13 @@ class Spatial457(ImageBaseDataset):
     DATASET_URL = {
         "Spatial457": "http://opencompass.openxlab.space/utils/VLMEval/Spatial457.tsv",
         "Spatial457_TEST": "https://huggingface.co/datasets/ysc0034/spatial457_test/raw/main/Spatial457_TEST.tsv",
-        "Spatial457_MINI": "https://huggingface.co/datasets/ysc0034/spatial457_mini/raw/main/Spatial457_MINI.tsv",
+        "Spatial457_MINI": "https://huggingface.co/datasets/ysc0034/spatial457_700/resolve/main/Spatial457_700.tsv",
     }
 
     DATASET_MD5 = {
         'Spatial457': "1f24f5a7b2cadc3d33a8a66ecf92ca68",
         'Spatial457_TEST': "a7697250ea35a29b8e60463e567a6db0",
-        'Spatial457_MINI': "7d3a6fb4f45d5173f384873266a72fd8",
+        'Spatial457_MINI': "5549f38cc5fabf4eb64970792e3bc35d",
     }
 
     def __init__(self, *args, **kwargs):
