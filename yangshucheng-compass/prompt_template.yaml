@@ -76,7 +76,8 @@ available_tools:
   #- Advanced_Object_Detector_Tool
   - Segmenter_Tool
   - Matcher_Tool
-
+  - Orientation_Estimator_Tool
+  
 # metadata for available tools
 toolbox_metadata:
   # Grounding DINO-1.0 base
@@ -176,6 +177,47 @@ toolbox_metadata:
         letter_detector_tool = Letter_Detector_Tool()
         results = letter_detector_tool.execute(image='path/to/image')
       output_example: "results: [[[[x0, y0], [x1, y1], [x2, y2], [x3, y3]], 'A', 0.95], ...]. # Note: The bounding box is defined as 4 coordinates of points: [top-left, top-right, bottom-right, bottom-left]."
+  #Orientation Estimator Tool (orientation)
+  Orientation_Estimator_Tool:
+    tool_module_name: orientation_estimator
+    tool_class_name: Orientation_Estimator_Tool
+    tool_description: >
+      Orient Anything, a robust image-based object orientation estimation model. 
+      It estimates yaw (left/right facing), pitch (up/down tilt), roll (image plane rotation), and confidence for each object.
+      Axes:
+        - +X: out of image (toward camera)
+        - +Y: right in image
+        - +Z: up in image
+    Returned Angle conventions:
+      - Yaw (Z-axis): Positive = turns to its right; Negative = turns to its left
+      - Pitch (Y-axis): Positive = tilts downward; Negative = tilts upward
+      - Roll (X-axis): Positive = rotates clockwise in image; Negative = counter-clockwise
+    input_types:
+      image_boxes: >
+        Unified dict input -{image_path (str): list}.  
+        list is [] → the image contains a single object (whole-image inference).  
+        list is [[x0, y0, x1, y1], …] → the image contains multiple objects (per-box inference).
+    output_types: >
+      dict - {image_path (str): list of tuple(float, float, float, float)}.  
+      Each tuple is (yaw, pitch, roll, confidence).  
+      The list order strictly follows the input bounding-box order; for [] input it has exactly one tuple for the single object.
+    demo_commands:
+      command: |
+        pose_tool = Pose_Estimator_Tool()
+        # Mixed batch: single-object image uses [], multi-object image lists its boxes
+        image_boxes = {
+            '/path/to/image_single': [],
+            '/path/to/image_multi':  [[50, 30, 300, 280], [320, 40, 620, 330]]
+        }
+        results = pose_tool.execute(image_boxes)
+      output_example: |
+        results: {'/path/to/image_single': [(8.7, 0.5, -2.1, 0.89)],
+         '/path/to/image_multi':  [(12.3, -5.6, 0.2, 0.91), (-31.0, 3.4, -6.2, 0.88)]}
+    user_metadata:
+      note: >
+        All angles are in degrees; confidence ∈ [0, 1].  
+        The returned list is always aligned with the order of the input bounding boxes (or contains a single tuple when the box list is empty).
+        It is necessary to first run an `object detector` to obtain bounding boxes when dealing with images that contain multiple objects.
   # Depth Estimation Tool
   Depth_Estimator_Tool:
     tool_module_name: depth_estimator
