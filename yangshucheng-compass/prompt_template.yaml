@@ -88,8 +88,8 @@ toolbox_metadata:
     input_types:
       image: str - The path to the image file.
       labels: list - A list of object labels to detect.
-      save_object: "bool - Whether to save the detected objects as `png` images (default: False)."
-      saved_image_path: "str - The path to save the detected object `png` images (default: 'detected_objects')."
+      save_object: "bool - Whether to crop input images and save detected objects as PNG images (default: False)."
+      saved_image_path: "str - Directory to save cropped PNG images (default: 'detected_objects')."
     output_types: >
       a dictionary mapping each detected label to a list of detection entries
       e.g. {'baseball': [{'box': (xmin, ymin, xmax, ymax), 'score': 0.95, 'saved_image_path': 'path/to/saved/image.png'}, ...], ...}.
