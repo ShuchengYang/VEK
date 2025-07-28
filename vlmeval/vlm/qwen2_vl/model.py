@@ -688,20 +688,44 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         return active_tool_names, filtered_metadata_dict
     
     # Yang Shucheng Tag
-    def generate_inner_yangshucheng(self, message, dataset=None):
-        if listinstr(['omni'], self.model_path.lower()):
-            try:
-                from qwen_omni_utils import process_mm_info
-            except Exception as err:
-                logging.critical("qwen_omni_utils not found, please install it via 'pip install qwen-omni-utils[decord]'")  # noqa: E501
-                raise err
-        else:
-            try:
-                from qwen_vl_utils import process_vision_info
-            except Exception as err:
-                logging.critical("qwen_vl_utils not found, please install it via 'pip install qwen-vl-utils'")  # noqa: E501
-                raise err
+    def _to_sandbox(self, response, image_payload):
+        # todo 如果检测到到response含有<answer></answer>，则直接提取中间的内容作为response
+        # todo 如果检测到到response含有<code></code>，则提取中间的内容，发送给sandbox执行，然后返回
+        # 如果sandbox返回结果字典中result的值为None，则直接返回"None"字样
+        # 如果sandbox返回结果字典中result的值不为None，则直接返回result的值作为response    
+        # todo 如果检测到response含有<answer></answer>，则直接提取中间的内容作为response
+        answer_found = False
+        m = re.search(r'<answer>(.*?)</answer>', response, re.S)
+        if m:
+            answer_found = True
+            response = m.group(1).strip()
 
+        code_found = False
+        if not answer_found:
+            # todo 如果检测到response含有<code></code>，则提取中间的内容，发送给sandbox执行，然后返回
+            m = re.search(r'<code>(.*?)</code>', response, re.S)
+            if m:
+                code_found = True
+                code_to_exec = m.group(1)
+                payload = {
+                    "code": code_to_exec,
+                    "timeout": 300,
+                    "q_aid": f"qa_{int(time.time())}",
+                    "images":  image_payload
+                }
+                try:
+                    resp = requests.post(self.sandbox_url, json=payload, timeout=payload.get('timeout', 300)+15)
+                    result_data = resp.json()
+                    exec_result = result_data.get('result')
+                    response = "None" if exec_result is None else exec_result
+                except Exception:
+                    response = "[FAILED TO GENERATE ANSWER, SANDBOX SERVICE ERROR]"
+        if not answer_found and not code_found:
+            response = "[FAILED TO GENERATE ANSWER]"
+
+        return response
+    
+    def _construct_conversation(self, message, dataset=None, vllm_flag=False):
         # some prepare work before cleaning folder
         try:
             rank = dist.get_rank()
@@ -714,7 +738,10 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
 
         # 这里要用自定义的模板构造message
         messages = []
-        content = self._prepare_content(message, dataset=dataset)
+        if vllm_flag:
+            content = self._prepare_content_vllm(message, dataset=dataset)
+        else:
+            content = self._prepare_content(message, dataset=dataset)
         # content is a list of dicts, each dict has keys: ['type', 'value']
         
         # make conversation here
@@ -804,6 +831,25 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
                 )
             messages.append({'role': 'system', 'content': sys_prompt})
         messages.append({'role': 'user', 'content': final_content})
+        # end of conversation construction
+        return messages, image_payload
+    
+    def generate_inner_yangshucheng(self, message, dataset=None):
+        if listinstr(['omni'], self.model_path.lower()):
+            try:
+                from qwen_omni_utils import process_mm_info
+            except Exception as err:
+                logging.critical("qwen_omni_utils not found, please install it via 'pip install qwen-omni-utils[decord]'")  # noqa: E501
+                raise err
+        else:
+            try:
+                from qwen_vl_utils import process_vision_info
+            except Exception as err:
+                logging.critical("qwen_vl_utils not found, please install it via 'pip install qwen-vl-utils'")  # noqa: E501
+                raise err
+
+        # Yang Shucheng some prepare work before cleaning folder
+        messages, image_payload = self._construct_conversation(message, dataset, vllm_flag=False)
         # end of conversation construction 
         
         # keep the way it is
@@ -834,41 +880,11 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         )
         response = out[0]
 
+        # Yang Shucheng,  to sandbox
         dprint(f"\n【DEBUG/】response:\n{response}\n【/DEBUG】\n")
+        response = self._to_sandbox(response, image_payload)
+        # YSCE
 
-        # todo 如果检测到到response含有<answer></answer>，则直接提取中间的内容作为response
-        # todo 如果检测到到response含有<code></code>，则提取中间的内容，发送给sandbox执行，然后返回
-        # 如果sandbox返回结果字典中result的值为None，则直接返回"None"字样
-        # 如果sandbox返回结果字典中result的值不为None，则直接返回result的值作为response    
-        # todo 如果检测到response含有<answer></answer>，则直接提取中间的内容作为response
-        answer_found = False
-        m = re.search(r'<answer>(.*?)</answer>', response, re.S)
-        if m:
-            answer_found = True
-            response = m.group(1).strip()
-
-        code_found = False
-        if not answer_found:
-            # todo 如果检测到response含有<code></code>，则提取中间的内容，发送给sandbox执行，然后返回
-            m = re.search(r'<code>(.*?)</code>', response, re.S)
-            if m:
-                code_found = True
-                code_to_exec = m.group(1)
-                payload = {
-                    "code": code_to_exec,
-                    "timeout": 300,
-                    "q_aid": f"qa_{int(time.time())}",
-                    "images":  image_payload
-                }
-                try:
-                    resp = requests.post(self.sandbox_url, json=payload, timeout=payload.get('timeout', 300)+15)
-                    result_data = resp.json()
-                    exec_result = result_data.get('result')
-                    response = "None" if exec_result is None else exec_result
-                except Exception:
-                    response = "[FAILED TO GENERATE ANSWER, SANDBOX SERVICE ERROR]"
-        if not answer_found and not code_found:
-            response = "[FAILED TO GENERATE ANSWER]"
         if self.post_process:
             resp = response.split('\\boxed{')[-1]
             lt = len(resp)
@@ -891,7 +907,108 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
             print(f'\033[32m{response}\033[0m')
         return response
 
-    
+    def generate_inner_vllm_yangshucheng(self, message, dataset=None):
+        from vllm import SamplingParams
+
+        if listinstr(['omni'], self.model_path.lower()):
+            try:
+                from qwen_omni_utils import process_mm_info
+            except Exception as err:
+                logging.critical("qwen_omni_utils not found, please install it via 'pip install qwen-omni-utils[decord]'")  # noqa: E501
+                raise err
+        else:
+            try:
+                from qwen_vl_utils import process_vision_info
+            except Exception as err:
+                logging.critical("qwen_vl_utils not found, please install it via 'pip install qwen-vl-utils'")  # noqa: E501
+                raise err
+        
+        # Yangshucheng
+        dprint("vllm mode conversation construction")
+        messages, image_payload = self._construct_conversation(message, dataset, True)
+        # YSCE
+        
+        if self.verbose:
+            print(f'\033[31m{messages}\033[0m')
+
+        text = self.processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        if listinstr(['omni'], self.model_path.lower()):
+            audios, images, videos = process_mm_info(messages, use_audio_in_video=self.use_audio_in_video)
+        else:
+            images, videos = process_vision_info(messages)
+        print('finishing process vision info in vllm.')
+
+        if DATASET_MODALITY(dataset) == 'VIDEO' and 'megabench' not in dataset.lower():
+            assert len(videos) == 1
+            videos_nd = [videos[0].detach().cpu().numpy().transpose(0, 2, 3, 1)]
+
+            video_inputs = {
+                "prompt": text[0],
+                "multi_modal_data": {"video": videos_nd[0]},
+                "mm_processor_kwargs":{}
+            }
+            if self.use_audio_in_video:
+                import vllm
+                assert not vllm.envs.VLLM_USE_V1, ("V1 does not support use_audio_in_video. Please launch this example with `VLLM_USE_V1=0`.")  # noqa: E501
+                video_inputs["multi_modal_data"]["audio"] = audios[0]
+                video_inputs['mm_processor_kwargs']['use_audio_in_video'] = True
+            if videos_nd[0].shape[0] > VLLM_MAX_IMAGE_INPUT_NUM:
+                print('video input sequence may be too long for vllm, Maybe cannot generate response for VLLM')
+        sampling_params = SamplingParams(
+            temperature=0.0, max_tokens=self.max_new_tokens, stop_token_ids=None
+        )
+        if images:
+            outputs = self.llm.generate(
+                {
+                    "prompt": text,
+                    "multi_modal_data": {"image": images},
+                },
+                sampling_params=sampling_params,
+            )
+        elif videos_nd:
+            outputs = self.llm.generate(
+                video_inputs,
+                sampling_params=sampling_params,
+            )
+        else:
+            outputs = self.llm.generate(
+                {
+                    "prompt": text,
+                },
+                sampling_params=sampling_params,
+            )
+
+        for o in outputs:
+            generated_text = o.outputs[0].text
+        
+        # Yang Shucheng
+        dprint("vllm mode to sandbox")
+        generated_text = self._to_sandbox(generated_text, image_payload)
+        # YSCE
+
+        if self.post_process:
+            resp = generated_text.split('\\boxed{')[-1]
+            lt = len(resp)
+            counter, end = 1, None
+            for i in range(lt):
+                if resp[i] == '{':
+                    counter += 1
+                elif resp[i] == '}':
+                    counter -= 1
+                if counter == 0:
+                    end = i
+                    break
+                elif i == lt - 1:
+                    end = lt
+                    break
+            if end is not None:
+                generated_text = resp[:end]
+
+        if self.verbose:
+            print(f'\033[32m{generated_text}\033[0m')
+        return generated_text
+
+
     # Yang Shucheng Tag
     def generate_inner(self, message, dataset=None):
         global sample_counter
@@ -908,7 +1025,11 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         # that every rank calls generate_inner the same number of times.
         if dist.is_initialized() and sample_counter % 10 == 0:
             dist.barrier()
-        return self.generate_inner_yangshucheng(message, dataset=dataset)
+        if self.use_vllm:
+            return self.generate_inner_vllm_yangshucheng(message, dataset=dataset)
+        else:
+            return self.generate_inner_yangshucheng(message, dataset=dataset)
+        
         # if self.use_vllm:
         #     return self.generate_inner_vllm(message, dataset=dataset)
         # elif self.use_lmdeploy:
