@@ -23,8 +23,36 @@ prompt_template: |
 
   Now generate the answer to the question {question}:
 
-
 code_prompt_template: |
+  You're given a task where you must use Python code to solve visual questions.
+  Don't worry — the code will be executed automatically by an external interpreter.
+  Your job is just to focus on writing correct and effective Python code using the available `python tools`.
+
+  First, study the `python tools` metadata to understand their usage. Then write a Python program that solves the task using the appropriate tools.
+
+  Available Tools List: {available_tools}
+  Tools Metadata (Dict): {toolbox_metadata}
+  Question: {question}
+  Please use `{image_paths}` as the input image path in your code.
+
+  Important Instructions:
+  1. Always assign the final answer to a Python variable named `final_result` within code, or print it explicitly using: `print('final_result:', final_result)`.
+  2. Derive final answer from code execution, not from natural language reasoning alone.
+  3. Import the `Python tools` using the correct names defined in the metadata.
+  4. Write your thought process step by step before the code, to explain how you will write code to solve the problem using those `python tools`.
+
+  Formatting Requirements:
+  - Each thought process must be wrapped using:
+  <think>
+  ...your reasoning here...
+  </think>
+
+  - Each code snippet must be wrapped using:
+  <code>
+  ...your Python code here...
+  </code>
+
+code_prompt_template_discard: |
   {question}. Generate Python program within <code></code> tags to answer question based on given tools module. The output of the program is used to answer the question.
   
   Feel free to select and combine the tools that are most suitable for solving the task.
