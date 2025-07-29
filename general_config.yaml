@@ -3,9 +3,19 @@
 # config.py ------------------------------------------------------------
 # model checkpoint (only one at a time)
 #grpo - 40steps
-ckpt: ysc0034/my-vl-checkpoint
+# ckpt: ysc0034/my-vl-checkpoint
 #grpo -180steps
 # ckpt: ysc0034/grpo_tools_180steps
+
+#more checkpoints (sft)
+#tt
+ckpt: ysc0034/sft_tool_thinker_0p1
+
+#1nl
+ckpt: ysc0034/sft_tools_nl_0p1
+
+#3nl
+ckpt: ysc0034/sft_tools_nl_0p3_wo_pose
 
 # model.py ------------------------------------------------------------
 # turn on the debug mode for moure detailed output
