@@ -39,9 +39,9 @@ LOCAL_TEMP_IMG_FOLDER = PROJECT_ROOT / LOCAL_SMALL
 def dprint(*args, **kwargs):
     if DEBUG:
         print(*args, **kwargs)
-dprint(f"【DEBUG】debug mode: {DEBUG}")
-dprint(f"【DEBUG】local temp img folder: {LOCAL_TEMP_IMG_FOLDER}")
-dprint(f"【DEBUG】sandbox temp img folder: {TEMP_IMG_FOLDER}")
+dprint(f"【DEBUG model.py】debug mode: {DEBUG}")
+dprint(f"【DEBUG model.py】local temp img folder: {LOCAL_TEMP_IMG_FOLDER}")
+dprint(f"【DEBUG model.py】sandbox temp img folder: {TEMP_IMG_FOLDER}")
 # YSCE
 
 VLLM_MAX_IMAGE_INPUT_NUM = 24
@@ -689,6 +689,7 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
     
     # Yang Shucheng Tag
     def _to_sandbox(self, response, image_payload):
+        dprint(f"\n【DEBUG/】response:\n{response}\n【/DEBUG】\n")
         # todo 如果检测到到response含有<answer></answer>，则直接提取中间的内容作为response
         # todo 如果检测到到response含有<code></code>，则提取中间的内容，发送给sandbox执行，然后返回
         # 如果sandbox返回结果字典中result的值为None，则直接返回"None"字样
@@ -722,7 +723,7 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
                     response = "[FAILED TO GENERATE ANSWER, SANDBOX SERVICE ERROR]"
         if not answer_found and not code_found:
             response = "[FAILED TO GENERATE ANSWER]"
-
+        dprint(f"\n【DEBUG model.py】prediction: {response}")
         return response
     
     def _construct_conversation(self, message, dataset=None, vllm_flag=False):
@@ -763,7 +764,7 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         for item in content:
             if item['type'] == 'text':
                 question_chunks.append(item['text'])
-                dprint(f"【DEBUG】question_chunks: {question_chunks}")
+                # dprint(f"【DEBUG model.py】question_chunk: {item['text']}")
             elif item['type'] == 'image':
                 # 下载 / 复制到本地
                 img_src = item['image']
@@ -787,8 +788,8 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
 
                 # 1) 收集路径用于 prompt
                 image_paths.append(sandbox_path)
-                dprint(f"【DEBUG{img_idx}】local path: {local_path}")
-                dprint(f"【DEBUG{img_idx}】sandbox_path: {sandbox_path}")
+                dprint(f"【DEBUG{img_idx} model.py】local path: {local_path}")
+                dprint(f"【DEBUG{img_idx} model.py】sandbox_path: {sandbox_path}")
 
                 # 2) 对本地文件做 Base64 编码，构造 payload
                 encoded, _mime = encode_image(local_path)   # 使用你已有的 encode_image 辅助
@@ -881,7 +882,6 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         response = out[0]
 
         # Yang Shucheng,  to sandbox
-        dprint(f"\n【DEBUG/】response:\n{response}\n【/DEBUG】\n")
         response = self._to_sandbox(response, image_payload)
         # YSCE
 
@@ -954,9 +954,42 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
                 video_inputs['mm_processor_kwargs']['use_audio_in_video'] = True
             if videos_nd[0].shape[0] > VLLM_MAX_IMAGE_INPUT_NUM:
                 print('video input sequence may be too long for vllm, Maybe cannot generate response for VLLM')
+        
+        # tokenizer=self.processor.tokenizer
+        # eos_id= tokenizer.eos_token_id 
         sampling_params = SamplingParams(
-            temperature=0.0, max_tokens=self.max_new_tokens, stop_token_ids=None
+            # temperature=self.generate_kwargs['temperature'],
+            temperature=0.5,
+            # top_p=self.generate_kwargs['top_p'],
+            # top_k=self.generate_kwargs['top_k'],
+            max_tokens=self.max_new_tokens, 
+            # stop=['</code>','</answer>'],
+            # stop_token_ids=[eos_id],
+            # include_stop_str_in_output=True,
+            # repetition_penalty=self.generate_kwargs['repetition_penalty'],
         )
+        # sampling_params = SamplingParams(
+        #     # —————————————————————————————————————————————————————————————
+        #     # 随机度控制（略微探索，避免完全贪心重复）
+        #     temperature=0.1,         # 0.0→纯贪心；0.2→保留少量随机性
+        #     top_p=0.85,              # nucleus sampling，累积概率阈值
+        #     top_k=5,                # 从概率最高的 40 个 token 里采样
+        #     # —————————————————————————————————————————————————————————————
+        #     # 重复惩罚（抑制整段复读）
+        #     repetition_penalty=1.1,  # >1.0 更不愿意重复同一 token
+        #     # frequency_penalty=0.5,   # 根据出现次数惩罚高频 token
+        #     # presence_penalty=0.5,    # 只要出现过就惩罚，鼓励使用新 token
+        #     # —————————————————————————————————————————————————————————————
+        #     # 停机条件（只在遇到自定义标签时停机）
+        #     stop=["</code>", "</answer>"],
+        #     # stop=['<|im_end|>'],
+        #     include_stop_str_in_output=True,
+        #     # 如果你还是想用 EOS 作为唯一停机点，可以去掉 stop_sequences，改成：
+        #     # stop_token_ids=[eos_id],
+        #     # —————————————————————————————————————————————————————————————
+        #     max_tokens=self.max_new_tokens,    # 与 Transformers 同步你的 max_new_tokens
+        # )
+        dprint(f"【DEBUG\】text:\n{text}【\DEBUG】")
         if images:
             outputs = self.llm.generate(
                 {
@@ -982,7 +1015,7 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
             generated_text = o.outputs[0].text
         
         # Yang Shucheng
-        dprint("vllm mode to sandbox")
+        # dprint("vllm mode to sandbox")
         generated_text = self._to_sandbox(generated_text, image_payload)
         # YSCE
 
