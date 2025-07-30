@@ -9,22 +9,28 @@
 
 #more checkpoints (sft)
 #tt
-ckpt: ysc0034/sft_tool_thinker_0p1
+# ckpt: ysc0034/sft_tool_thinker_0p1
 
 #1nl
-ckpt: ysc0034/sft_tools_nl_0p1
+# ckpt: ysc0034/sft_tools_nl_0p1
 
 #3nl
-ckpt: ysc0034/sft_tools_nl_0p3_wo_pose
+# ckpt: ysc0034/sft_tools_nl_0p3_wo_pose
+
+#3nlo
+ckpt: ysc0034/sft_tools_nl_0p3_w_orien
+
+#grpo 135steps
+# ckpt: ysc0034/grpo_135steps
 
 # model.py ------------------------------------------------------------
 # turn on the debug mode for moure detailed output
 debug: True
 # 设置临时存储文件的地址
 # 命名规范：{checkpoint名字}_{数据集名称|实验性质（test or run）}
-sandbox_temp_img_folder: ./grpo40_mmstar_run
+sandbox_temp_img_folder: ./3nlo_mmstar_run
 # under project root, dont start with /
-local_temp_img_folder: yangshucheng-compass/grpo40_mmstar_run
+local_temp_img_folder: yangshucheng-compass/3nlo_mmstar_run
 
 
 # mmstar database (only one at a time) ------------------------------------------------------------
