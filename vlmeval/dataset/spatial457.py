@@ -21,12 +21,14 @@ class Spatial457(ImageBaseDataset):
         "Spatial457": "http://opencompass.openxlab.space/utils/VLMEval/Spatial457.tsv",
         "Spatial457_TEST": "https://huggingface.co/datasets/ysc0034/spatial457_test/raw/main/Spatial457_TEST.tsv",
         "Spatial457_MINI": "https://huggingface.co/datasets/ysc0034/spatial457_700/resolve/main/Spatial457_700.tsv",
+        "Spatial457_CLEAN": "https://huggingface.co/datasets/ysc0034/spatial457_clean/resolve/main/Spatial457_CLEAN.tsv",
     }
 
     DATASET_MD5 = {
         'Spatial457': "1f24f5a7b2cadc3d33a8a66ecf92ca68",
         'Spatial457_TEST': "a7697250ea35a29b8e60463e567a6db0",
         'Spatial457_MINI': "5549f38cc5fabf4eb64970792e3bc35d",
+        'Spatial457_CLEAN': "f9fe233b1280b5b94455b53d263ec2d7",
     }
 
     def __init__(self, *args, **kwargs):
