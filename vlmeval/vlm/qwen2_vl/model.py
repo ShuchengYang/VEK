@@ -33,6 +33,7 @@ with open(general_config_yaml_path, "r") as stream:
 
 # please check
 DEBUG  = genconf.get("debug", False)
+USE_ORIGIN = genconf.get("use_origin", False)
 TEMP_IMG_FOLDER = genconf.get('sandbox_temp_img_folder', "./delete-me-sandbox-temp-img-folder") # sandbox side
 LOCAL_SMALL = genconf.get('local_temp_img_folder', "delete-me-local-temp-img-folder")
 LOCAL_TEMP_IMG_FOLDER = PROJECT_ROOT / LOCAL_SMALL
@@ -1041,7 +1042,7 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
             print(f'\033[32m{generated_text}\033[0m')
         return generated_text
 
-
+    # YSCE  
     # Yang Shucheng Tag
     def generate_inner(self, message, dataset=None):
         global sample_counter
@@ -1059,6 +1060,8 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         if dist.is_initialized() and sample_counter % 10 == 0:
             dist.barrier()
         if self.use_vllm:
+            if USE_ORIGIN:
+                return self.generate_inner_vllm(message, dataset=dataset)
             return self.generate_inner_vllm_yangshucheng(message, dataset=dataset)
         else:
             return self.generate_inner_yangshucheng(message, dataset=dataset)
