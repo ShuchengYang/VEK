@@ -12,6 +12,12 @@
 #grpo - 135steps
 # ckpt: ysc0034/grpo_135steps
 
+# puco80
+ckpt: ysc0034/grpo_pure_code_spatial457_w_think_80
+
+# puco90
+ckpt: ysc0034/grpo_pure_code_spatial457_wo_multireward_90
+
 
 #more checkpoints (sft)
 #tt
@@ -28,6 +34,9 @@
 
 #ttmul
 ckpt: ysc0034/sft_tools_thinker_multitools
+
+#q2ttmul
+ckpt: ysc0034/sft_qwen2_tools_thinker_multitools
 
 
 # model.py ------------------------------------------------------------
