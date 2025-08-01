@@ -32,6 +32,7 @@ ckpt: ysc0034/sft_tools_thinker_multitools
 
 # model.py ------------------------------------------------------------
 # turn on the debug mode for moure detailed output
+# 有事没事都设置为True
 debug: True
 # 设置临时存储文件的地址
 # 命名规范：{checkpoint名字}_{数据集名称|实验性质（test or run）}
@@ -43,10 +44,16 @@ local_temp_img_folder: yangshucheng-compass/0_mmstar_test
 # mmstar database (only one at a time) ------------------------------------------------------------
 # if use full = true, use the 500-sample full size mmstar dataset
 # otherwise use the 5-sample mmstar test dataset
-use_full: False
-
+# 正式跑结果都设为True, 测试的时候设置为False
+use_full: True
 
 # only true when test the baseline Qwen2.5_VL_7B_Instruct w.o. code ----------------------------------------
 # keep it false
+# 这个是控制模型不适用sandbox，而采用原版推理，只有对原版模型without code测试时候需要开启，其他测试设为False
 use_origin: True
+
+# spatial457.py -------------------------------------------------------------
+# 如果在MMStar上测试，那么保持这个选项为True, 在Spatial457系列上测试，如果测试的是原版模型（0shot, without code， 那么设置为False, 其余情况设置为True）
+# 针对Spatial457数据集的prompt构造方法，如果想使用原版，那么mini_flag设置为False
+mini_flag: False
 

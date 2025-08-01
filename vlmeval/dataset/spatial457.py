@@ -10,12 +10,54 @@ from .utils import build_judge, DEBUG_MESSAGE, Spatial457_utils
 from ..smp import *
 from ..utils import track_progress_rich
 
+import yaml
+import os
+from pathlib import Path
+
+def find_project_root_by_config(config_filename="general_config.yaml"):
+    """
+    通过查找指定的配置文件，向上遍历目录树来确定项目根目录。
+
+    Args:
+        config_filename (str): 项目根目录下的配置文件名，默认为 'general_config.yaml'。
+
+    Returns:
+        pathlib.Path: 项目根目录的Path对象。如果找不到，则返回当前工作目录。
+    """
+    # 从当前文件的绝对路径开始
+    current_path = Path(__file__).resolve()
+
+    # 向上遍历所有父目录
+    for parent in current_path.parents:
+        if (parent / config_filename).exists():
+            return parent
+    
+    # 如果从当前文件路径向上没有找到，尝试从当前工作目录向上遍历
+    # 这在某些运行环境下（比如从子目录运行脚本）可能会有用
+    current_working_dir = Path(os.getcwd()).resolve()
+    for parent in current_working_dir.parents:
+        if (parent / config_filename).exists():
+            return parent
+
+    # 如果所有尝试都失败了，警告并返回当前工作目录
+    print(f"Warning: Project root (marked by '{config_filename}') not found. "
+          f"Defaulting to current working directory: {current_working_dir}")
+    return current_working_dir
+PROJECT_ROOT = find_project_root_by_config()
+general_config_yaml_path = PROJECT_ROOT / "general_config.yaml"
+with open(general_config_yaml_path, "r") as stream:
+    genconf = yaml.safe_load(stream)
+DEBUG  = genconf.get("debug", False)
+def dprint(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
+MINI = genconf.get('mini_flag', True)
+dprint(f"【DEBUG spatial457.py】mini flag: {MINI}")
 
 class Spatial457(ImageBaseDataset):
     TYPE = "VQA"
     # When ROBUST is True, if the models does not follow the format, all of the response will be treated as answers.
     ROBUST = True
-    MINI = True
 
     DATASET_URL = {
         "Spatial457": "http://opencompass.openxlab.space/utils/VLMEval/Spatial457.tsv",
@@ -74,7 +116,8 @@ class Spatial457(ImageBaseDataset):
             objects = []
 
             # parse the answer
-            if not self.MINI:
+            # Yang Shucheng
+            if not MINI:
                 pred_try_1 = re.search(r"Answer': '(.*?)'", line["prediction"])
                 pred_try_2 = re.search(r'Answer": "(.*?)"', line["prediction"])
                 pred_try_3 = re.search(r"Answer': (\d)", line["prediction"])
@@ -108,6 +151,7 @@ class Spatial457(ImageBaseDataset):
             else:
                 pred = line['prediction']
                 reasoning = 'Skipped'
+            # YSCE
 
             correct = self.dataset_utils.is_correct(answers, pred)
 
@@ -154,11 +198,12 @@ class Spatial457(ImageBaseDataset):
         msgs = super().build_prompt(line)
 
         set_type = line["category"]
-        if self.MINI:
+        #Yang Shucheng
+        if MINI:
             instruction_1, instruction_2 = self.build_subtask_instruction_ysc_ver(set_type)
         else:
             instruction_1, instruction_2 = self.build_subtask_instruction(set_type)
-
+        # YSCE
         msgs.insert(0, {"type": "text", "value": instruction_1})
         msgs.append({"type": "text", "value": instruction_2})
 
