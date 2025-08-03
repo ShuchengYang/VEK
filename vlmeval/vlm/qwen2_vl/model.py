@@ -265,6 +265,10 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
             MODEL_CLS = Qwen2_5OmniForConditionalGeneration
             self.processor = Qwen2_5OmniProcessor.from_pretrained(model_path)
         # Yang Shucheng Tag
+        elif listinstr(['qwen2_'], model_path.lower()):
+            from transformers import Qwen2VLForConditionalGeneration, Qwen2VLProcessor
+            MODEL_CLS = Qwen2VLForConditionalGeneration
+            self.processor = Qwen2VLProcessor.from_pretrained(model_path)
         elif listinstr(['ysc', '2.5', '2_5', 'qwen25', 'mimo'], model_path.lower()):
         # YSCE
             from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor

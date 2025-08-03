@@ -1262,6 +1262,13 @@ qwen2vl_series = {
         use_custom_prompt=False,
         code_mode=True,
     ),
+    "Qwen2-VL-7B-Tool-Code": partial(
+        Qwen2VLChat,
+        model_path=MODEL_PATH,
+        min_pixels=1280 * 28 * 28,
+        max_pixels=16384 * 28 * 28,
+        code_mode=True,
+    ),
     "Qwen2.5-VL-7B-Answer": partial(
         Qwen2VLChat,
         model_path="ysc0034/my-vl-checkpoint",
