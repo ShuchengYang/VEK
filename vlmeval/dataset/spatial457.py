@@ -64,6 +64,8 @@ class Spatial457(ImageBaseDataset):
         "Spatial457_TEST": "https://huggingface.co/datasets/ysc0034/spatial457_test/raw/main/Spatial457_TEST.tsv",
         "Spatial457_MINI": "https://huggingface.co/datasets/ysc0034/spatial457_700/resolve/main/Spatial457_700.tsv",
         "Spatial457_CLEAN": "https://huggingface.co/datasets/ysc0034/spatial457_clean/resolve/main/Spatial457_CLEAN.tsv",
+        #Omni-3D
+        "Spatial457_OMNI": ""
     }
 
     DATASET_MD5 = {
@@ -71,6 +73,8 @@ class Spatial457(ImageBaseDataset):
         'Spatial457_TEST': "a7697250ea35a29b8e60463e567a6db0",
         'Spatial457_MINI': "5549f38cc5fabf4eb64970792e3bc35d",
         'Spatial457_CLEAN': "f9fe233b1280b5b94455b53d263ec2d7",
+        #Omni-3D
+        'Spatial457_OMNI': ""
     }
 
     def __init__(self, *args, **kwargs):
@@ -90,6 +94,7 @@ class Spatial457(ImageBaseDataset):
             "total": 0,
             "answers": [],
             "format_error": 0,
+            
             "L1_single": 0,
             "L2_objects": 0,
             "L3_2d_spatial": 0,
@@ -97,6 +102,9 @@ class Spatial457(ImageBaseDataset):
             "L4_pose": 0,
             "L5_6d_spatial": 0,
             "L5_collision": 0,
+            #Omni-3D
+            "Omni_3d": 0,
+
             "L1_single_correct": 0,
             "L2_objects_correct": 0,
             "L3_2d_spatial_correct": 0,
@@ -104,6 +112,8 @@ class Spatial457(ImageBaseDataset):
             "L4_pose_correct": 0,
             "L5_6d_spatial_correct": 0,
             "L5_collision_correct": 0,
+            #Omni-3D
+            "Omni_3d_correct":0,
         }
 
         for i in tqdm(range(len(lines))):
@@ -116,7 +126,7 @@ class Spatial457(ImageBaseDataset):
             objects = []
 
             # parse the answer
-            # Yang Shucheng
+            # Yang Shucheng 使用原版dataset prompt
             if not MINI:
                 pred_try_1 = re.search(r"Answer': '(.*?)'", line["prediction"])
                 pred_try_2 = re.search(r'Answer": "(.*?)"', line["prediction"])
@@ -184,6 +194,8 @@ class Spatial457(ImageBaseDataset):
             "L4_pose",
             "L5_6d_spatial",
             "L5_collision",
+            #Omni-3D
+            "Omni_3d",
         ]:
             all_results[f"{level}_score"] = (
                 all_results[f"{level}_correct"] / all_results[level] if all_results[level] > 0 else 0
@@ -204,12 +216,17 @@ class Spatial457(ImageBaseDataset):
         else:
             instruction_1, instruction_2 = self.build_subtask_instruction(set_type)
         # YSCE
-        msgs.insert(0, {"type": "text", "value": instruction_1})
-        msgs.append({"type": "text", "value": instruction_2})
+        if instruction_1 != "":
+            msgs.insert(0, {"type": "text", "value": instruction_1})
+        if instruction_2 != "":
+            msgs.append({"type": "text", "value": instruction_2})
 
         return msgs
 
     def build_subtask_instruction(self, level):
+        if level == 'Omni_3d':
+            dprint("【DEBUG spatial457.py】omni 3d dataset prompt activated")
+            return "", "Write your response into this json template: " "{'Reasoning': '<your reasons>', 'Answer': '<Your answer>'}"
 
         task_map = {
             "L1_single": (
@@ -270,6 +287,9 @@ class Spatial457(ImageBaseDataset):
         return instruction_1, instruction_2
     
     def build_subtask_instruction_ysc_ver(self, level):
+        if level == 'Omni_3d':
+            dprint("【DEBUG spatial457.py】omni 3d dataset prompt activated (YSC Ver.)")
+            return "", ""
 
         task_map = {
             "L1_single": (
