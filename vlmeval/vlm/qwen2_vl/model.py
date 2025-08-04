@@ -963,15 +963,11 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         # tokenizer=self.processor.tokenizer
         # eos_id= tokenizer.eos_token_id 
         sampling_params = SamplingParams(
-            # temperature=self.generate_kwargs['temperature'],
             temperature=0.5,
-            # top_p=self.generate_kwargs['top_p'],
-            # top_k=self.generate_kwargs['top_k'],
-            max_tokens=self.max_new_tokens, 
-            # stop=['</code>','</answer>'],
-            # stop_token_ids=[eos_id],
-            # include_stop_str_in_output=True,
-            # repetition_penalty=self.generate_kwargs['repetition_penalty'],
+            top_p=0.99,
+            top_k=-1,
+            seed=1,
+            max_tokens=2048,
         )
         # sampling_params = SamplingParams(
         #     # —————————————————————————————————————————————————————————————
