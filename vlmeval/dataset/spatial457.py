@@ -212,7 +212,9 @@ class Spatial457(ImageBaseDataset):
         set_type = line["category"]
         #Yang Shucheng
         if MINI:
-            instruction_1, instruction_2 = self.build_subtask_instruction_ysc_ver(set_type)
+            # instruction_1, instruction_2 = self.build_subtask_instruction_ysc_ver(set_type)
+            # pure question for sandbox version-spatial457
+            instruction_1, instruction_2 = "", ""
         else:
             instruction_1, instruction_2 = self.build_subtask_instruction(set_type)
         # YSCE
