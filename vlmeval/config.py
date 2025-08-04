@@ -1273,14 +1273,16 @@ qwen2vl_series = {
         # max_pixels=16384 * 28 * 28,
         code_mode=True,
     ),
-    #YSCE: 0-shot baseline not set yet
     "Qwen2.5-VL-7B-Instruct": partial(
         Qwen2VLChat,
         model_path="Qwen/Qwen2.5-VL-7B-Instruct",
-        min_pixels=1280 * 28 * 28,
-        max_pixels=16384 * 28 * 28,
+        min_pixels=262144,
+        max_pixels=4194304,
+        # min_pixels=1280 * 28 * 28,
+        # max_pixels=16384 * 28 * 28,
         use_custom_prompt=False,
     ),
+    #YSCE: 0-shot baseline not set yet
     "Qwen2.5-VL-7B-Instruct-ForVideo": partial(
         Qwen2VLChat,
         model_path="Qwen/Qwen2.5-VL-7B-Instruct",
