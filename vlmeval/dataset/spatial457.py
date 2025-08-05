@@ -53,6 +53,7 @@ def dprint(*args, **kwargs):
         print(*args, **kwargs)
 MINI = genconf.get('mini_flag', True)
 dprint(f"【DEBUG spatial457.py】mini flag: {MINI}")
+#注意，当在Omni3D上测试的时候，无论是用0shot还是其他，都是MINI=True
 
 class Spatial457(ImageBaseDataset):
     TYPE = "VQA"
@@ -65,7 +66,7 @@ class Spatial457(ImageBaseDataset):
         "Spatial457_MINI": "https://huggingface.co/datasets/ysc0034/spatial457_700/resolve/main/Spatial457_700.tsv",
         "Spatial457_CLEAN": "https://huggingface.co/datasets/ysc0034/spatial457_clean/resolve/main/Spatial457_CLEAN.tsv",
         #Omni-3D
-        "Spatial457_OMNI": ""
+        "Spatial457_OMNI": "https://huggingface.co/datasets/ysc0034/spatial457_omni/resolve/main/Spatial457_OMNI.tsv"
     }
 
     DATASET_MD5 = {
@@ -74,7 +75,7 @@ class Spatial457(ImageBaseDataset):
         'Spatial457_MINI': "5549f38cc5fabf4eb64970792e3bc35d",
         'Spatial457_CLEAN': "f9fe233b1280b5b94455b53d263ec2d7",
         #Omni-3D
-        'Spatial457_OMNI': ""
+        'Spatial457_OMNI': "68417133da9cc431e2c4f53ea99983c6"
     }
 
     def __init__(self, *args, **kwargs):
@@ -102,8 +103,11 @@ class Spatial457(ImageBaseDataset):
             "L4_pose": 0,
             "L5_6d_spatial": 0,
             "L5_collision": 0,
-            #Omni-3D
-            "Omni_3d": 0,
+            
+            # Omni-3D 个数统计
+            "Omni_3d_str": 0,
+            "Omni_3d_int": 0,
+            "Omni_3d_float": 0,
 
             "L1_single_correct": 0,
             "L2_objects_correct": 0,
@@ -112,8 +116,12 @@ class Spatial457(ImageBaseDataset):
             "L4_pose_correct": 0,
             "L5_6d_spatial_correct": 0,
             "L5_collision_correct": 0,
-            #Omni-3D
-            "Omni_3d_correct":0,
+            
+            # Omni-3D
+            "Omni_3d_str_correct": 0,
+            "Omni_3d_int_correct": 0,
+            # sum of MRA
+            "Omni_3d_float_correct": 0,
         }
 
         for i in tqdm(range(len(lines))):
@@ -128,6 +136,7 @@ class Spatial457(ImageBaseDataset):
             # parse the answer
             # Yang Shucheng 使用原版dataset prompt
             if not MINI:
+                #这一部分的触发条件：原版framework + 0-shot wo code Spatial457 (不包含Omni3D)
                 pred_try_1 = re.search(r"Answer': '(.*?)'", line["prediction"])
                 pred_try_2 = re.search(r'Answer": "(.*?)"', line["prediction"])
                 pred_try_3 = re.search(r"Answer': (\d)", line["prediction"])
@@ -159,11 +168,17 @@ class Spatial457(ImageBaseDataset):
                     else:
                         reasoning = "Format Error. Guess a random answer."
             else:
+                #这一部分的触发条件是 : 任何Omni3D + 任何 code mode (sandbox)
                 pred = line['prediction']
                 reasoning = 'Skipped'
             # YSCE
 
-            correct = self.dataset_utils.is_correct(answers, pred)
+            #todo 这里如果level里面含有omni,那么要调用omni专用is_correct
+            #todo 实现专用is_correct
+            if "Omni" in level:
+                correct = self.dataset_utils.is_correct_omni(level, answers, pred)
+            else:
+                correct = self.dataset_utils.is_correct(answers, pred)
 
             all_results["answers"].append(
                 {
@@ -175,15 +190,19 @@ class Spatial457(ImageBaseDataset):
                     "objects": objects,
                 }
             )
-
-            all_results["total"] += 1
-            if correct:
-                all_results["correct"] += 1
-
+            #这里要排除Omni_3d_float
+            if not ("float" in level):
+                all_results["total"] += 1
+                if correct:
+                    all_results["correct"] += 1
+            
             all_results[f"{level}"] += 1
-            if correct:
+            #这里要分类讨论，如果float则直接加上
+            if "float" in level:
+                all_results[f"{level}_correct"] += correct
+            elif correct:
                 all_results[f"{level}_correct"] += 1
-
+        #这里统计的是非float的acc
         all_results["score"] = all_results["correct"] / all_results["total"]
 
         for level in [
@@ -195,7 +214,9 @@ class Spatial457(ImageBaseDataset):
             "L5_6d_spatial",
             "L5_collision",
             #Omni-3D
-            "Omni_3d",
+            "Omni_3d_str",
+            "Omni_3d_int",
+            "Omni_3d_float",
         ]:
             all_results[f"{level}_score"] = (
                 all_results[f"{level}_correct"] / all_results[level] if all_results[level] > 0 else 0
@@ -212,9 +233,7 @@ class Spatial457(ImageBaseDataset):
         set_type = line["category"]
         #Yang Shucheng
         if MINI:
-            # instruction_1, instruction_2 = self.build_subtask_instruction_ysc_ver(set_type)
-            # pure question for sandbox version-spatial457
-            instruction_1, instruction_2 = "", ""
+            instruction_1, instruction_2 = self.build_subtask_instruction_ysc_ver(set_type)           
         else:
             instruction_1, instruction_2 = self.build_subtask_instruction(set_type)
         # YSCE
@@ -289,9 +308,29 @@ class Spatial457(ImageBaseDataset):
         return instruction_1, instruction_2
     
     def build_subtask_instruction_ysc_ver(self, level):
-        if level == 'Omni_3d':
+        if 'Omni_3d' in level:
+            task_map = {
+                "Omni_3d_str": (
+                    "Hint:"
+                    "If the question asks “Is there …?” or involves comparing counts/attributes, answer must be exactly “yes” or “no”."
+                    "If it asks about time, use 24-hour “HH:MM” format (e.g. “12:15”)."
+                    "If it asks about direction, like “Which way…?”, choose one from {N, S, E, W, NE, NW, SE, SW}."
+                    "If it asks about color, choose one color from {red, blue, green, yellow, black, white, brown, gray}."
+                    "If it asks about material, choose one material from {wooden, metal, plastic, glass}."
+                    "If it asks about object, name exactly one object or composite object phrase present in the scene (e.g., chair, table, bottle, cup)."
+                    "Make sure you answer only the single phrase—no extra words or punctuation."
+                ),
+                "Omni_3d_int": (
+                    "Hint:"
+                    "Answer with a non-negative integer count (e.g. 0, 1, 2, …) when the question uses “How many” or “What is the number of”. Do not include any units or additional text—just the integer."
+                ),
+                "Omni_3d_float": (
+                    "Hint:"
+                    "Answer with a decimal number (e.g. 2.361) when the question asks for a measurement (e.g. distance, length, angle) or some other float quantity. Do not include units—just the numeric value."
+                ) 
+            }
             dprint("【DEBUG spatial457.py】omni 3d dataset prompt activated (YSC Ver.)")
-            return "", ""
+            return "", task_map.get(level, "")
 
         task_map = {
             "L1_single": (
