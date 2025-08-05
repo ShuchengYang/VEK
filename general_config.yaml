@@ -13,10 +13,16 @@
 # ckpt: ysc0034/grpo_135steps
 
 # puco80
-ckpt: ysc0034/grpo_pure_code_spatial457_w_think_80
+# ckpt: ysc0034/grpo_pure_code_spatial457_w_think_80
 
 # puco90
-ckpt: ysc0034/grpo_pure_code_spatial457_wo_multireward_90
+# ckpt: ysc0034/grpo_pure_code_spatial457_wo_multireward_90
+
+# puco100
+ckpt: ysc0034/exp_pure_code_spatial457_w_code_len_100steps
+
+# pucot100
+# ckpt: ysc0034/exp_pure_code_spatial457_w_code_think_len_100steps
 
 
 #more checkpoints (sft)
@@ -33,10 +39,10 @@ ckpt: ysc0034/grpo_pure_code_spatial457_wo_multireward_90
 # ckpt: ysc0034/sft_tools_nl_0p3_w_orien
 
 #ttmul
-ckpt: ysc0034/sft_tools_thinker_multitools
+# ckpt: ysc0034/sft_tools_thinker_multitools
 
 #q2ttmul
-ckpt: ysc0034/sft_qwen2_tools_thinker_multitools
+# ckpt: ysc0034/sft_qwen2_tools_thinker_multitools
 
 
 # model.py ------------------------------------------------------------
@@ -64,5 +70,6 @@ use_origin: True
 # spatial457.py -------------------------------------------------------------
 # 如果在MMStar上测试，那么保持这个选项为True, 在Spatial457系列上测试，如果测试的是原版模型（0shot, without code， 那么设置为False, 其余情况设置为True）
 # 针对Spatial457数据集的prompt构造方法，如果想使用原版，那么mini_flag设置为False
+# 如果在测Omni3d,请无论什么模型一直保持True
 mini_flag: False
 
