@@ -280,12 +280,12 @@ class Spatial457_utils:
                 dprint(f"【DEBUG utils】[float branch] float error")
                 return 0.
             #MRA
-            C = [i / 100 * 50 + 0.5 for i in range(1,10)]
+            C = [i / 100 * 5 + 0.5 for i in range(0,10)]
+            relative_error = abs(y_hat - y)/y
             sum_indicator = 0
             for theta in C:
-                relative_error = abs(y_hat - y) / y
-                indicator = 1 if relative_error < (1 - theta) else 0
-                sum_indicator += indicator
+                if relative_error < (1 - theta):
+                    sum_indicator += 1
             mra = sum_indicator / len(C)
             dprint(f"【DEBUG utils】[float branch] mra {mra}")   
             return mra
