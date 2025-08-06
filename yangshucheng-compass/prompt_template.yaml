@@ -23,7 +23,7 @@ prompt_template: |
 
   Now generate the answer to the question {question}:
 
-code_prompt_template: |
+code_prompt_template_old: |
   You're given a task where you must use Python code to solve visual questions.
   Don't worry — the code will be executed automatically by an external interpreter.
   Your job is just to focus on writing correct and effective Python code using the available `python tools`.
@@ -52,7 +52,7 @@ code_prompt_template: |
   ...your Python code here...
   </code>
 
-code_prompt_template_discard: |
+code_prompt_template: |
   You're given a task where you must answer visual or spatial questions using **Python code**.
   ## Your goal:
   Write correct and effective Python code using the available `python tools`. You do **not** need to execute the code — an external interpreter will handle execution automatically.
