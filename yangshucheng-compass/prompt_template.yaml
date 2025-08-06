@@ -53,48 +53,48 @@ code_prompt_template: |
   </code>
 
 code_prompt_template_discard: |
-  {question}. Generate Python program within <code></code> tags to answer question based on given tools module. The output of the program is used to answer the question.
-  
-  Feel free to select and combine the tools that are most suitable for solving the task.
-  Available Tools List:  {available_tools}
-  Tools Metadata(Dict):  {toolbox_metadata}
+  You're given a task where you must answer visual or spatial questions using **Python code**.
+  ## Your goal:
+  Write correct and effective Python code using the available `python tools`. You do **not** need to execute the code — an external interpreter will handle execution automatically.
 
-  Details and Rules:
-  1. Use correct image paths: `{image_paths}`.
-  2. Use the `tool_module_name` and `tool_class_name` fields from each tool's metadata to import the correct module and class.
-  3. Assign the final answer for question to a variable named `final_result` within the Python code. 
+  ##  Input Information
 
-  **Important instructions**:
-  1. Enclose your Python program in <code></code> tags, and do not output the interpreter execution result `(<interpreter></interpreter>)` yourself.
-  2. Write your thinking process in the comments of the code to help you code, but do not output any other text outside the <code></code> tags.
-  3. Most errors stem from incorrect usage of tool functions. Please carefully review their Metadata.
-  4. If you import or instantiate a tool, be sure to **actually execute** it and use its return value.
-  5. The value assigned to `final_result` must depend on the computation you perform (or on data returned by tools); never hard-code it unless that constant truly *is* the answer.
-  6. Eliminate any dead code paths or unused variables from prior attempts.
-  
-  PLEASE FOLLOW THE **CODE FORMAT** TO OUTPUT:
-  Your code MUST be wrapped in `<code></code>` tags. Starting with `<code>` AND ending with `</code>`.
-  CORRECT example:
+  - **Question**: {question}
+  - **Input image path**: `{image_paths}`
+  - **Available Tools**: {available_tools}
+  - **Tool Metadata (dictionary)**: {toolbox_metadata}
+  ★- **Tip**: Review all tools and consider combining several of them if that can yield a more accurate or efficient solution.
+  Before writing code, carefully study the provided **tool metadata** to understand how each tool works and how to invoke them.
+
+  ## Your Task
+  1. **Reason through the problem step-by-step before coding**:
+  - First, **explain why this is a spatial/visual reasoning task** that requires code-based analysis.
+  - Then, **describe how you will use the given Python tools** to solve the task programmatically.
+
+  2. **Write Python code that solves the task** using the appropriate tools.
+  **If multiple tools are needed, invoke them sequentially, passing intermediate outputs from one tool as inputs to the next whenever appropriate.**
+
+  3. **Assign your final answer** to a variable named `final_result`.
+
+  ## Formatting Requirements:
+  1. Thought Process Formatting
+
+  Wrap your reasoning block like this:
+  <think>
+  - Why is this a visual/spatial problem requiring code?  
+  - How will you invoke the tools to solve it?
+  - Step by step explain in pseudo code way how you would write code here.
+  </think>
+
+  2. Code Formatting
+  Wrap your code block like this:
   <code>
-  ... your python code in between
+  ... your Python code here ...
   </code>
+  **Note**: `final_result` must only come from tool/API outputs or code variables, not from your own reasoning or direct answer.
 
-  WRONG example 1 to avoid:
-  ```python 
-  ... some code here ...
-  ```
-  WRONG example 2 to avoid:
-  <code> 
-  ... some code here ...
-  ```
-  WRONG example 3 to avoid:
-  ```python 
-  ... some code here ...
-  </code>
-  the wrong examples above start with ```python and/or end with ```, these are ALL FALSE format!!!
-    
-  Now generate the code to answer the question based on the available tools and image paths.:
-
+  Now please begin reasoning and code writing:
+  
 # available_tools for usage
 available_tools:
   - Object_Detector_Tool
