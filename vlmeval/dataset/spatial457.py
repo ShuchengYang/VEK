@@ -66,7 +66,8 @@ class Spatial457(ImageBaseDataset):
         "Spatial457_MINI": "https://huggingface.co/datasets/ysc0034/spatial457_700/resolve/main/Spatial457_700.tsv",
         "Spatial457_CLEAN": "https://huggingface.co/datasets/ysc0034/spatial457_clean/resolve/main/Spatial457_CLEAN.tsv",
         #Omni-3D
-        "Spatial457_OMNI": "https://huggingface.co/datasets/ysc0034/spatial457_omni/resolve/main/Spatial457_OMNI.tsv"
+        "Spatial457_OMNI": "https://huggingface.co/datasets/ysc0034/spatial457_omni/resolve/main/Spatial457_OMNI.tsv",
+        "Spatial457_OT": "https://huggingface.co/datasets/ysc0034/spatial457_ot/resolve/main/Spatial457_OT.tsv"
     }
 
     DATASET_MD5 = {
@@ -75,7 +76,8 @@ class Spatial457(ImageBaseDataset):
         'Spatial457_MINI': "5549f38cc5fabf4eb64970792e3bc35d",
         'Spatial457_CLEAN': "f9fe233b1280b5b94455b53d263ec2d7",
         #Omni-3D
-        'Spatial457_OMNI': "68417133da9cc431e2c4f53ea99983c6"
+        'Spatial457_OMNI': "68417133da9cc431e2c4f53ea99983c6",
+        'Spatial457_OT': "d35cf35e874678ba38d52b37a6a1345f"
     }
 
     def __init__(self, *args, **kwargs):
