@@ -22,6 +22,47 @@ for key, value in SUPERCLRVER_sub_shape.items():
 #spatial 457 -> acc ~0.4 -> open question with hint
 #wxie -> acc 0.7(L1-L4) -> multichoice
 import re
+import yaml
+import os
+from pathlib import Path
+def find_project_root_by_config(config_filename="general_config.yaml"):
+    """
+    通过查找指定的配置文件，向上遍历目录树来确定项目根目录。
+
+    Args:
+        config_filename (str): 项目根目录下的配置文件名，默认为 'general_config.yaml'。
+
+    Returns:
+        pathlib.Path: 项目根目录的Path对象。如果找不到，则返回当前工作目录。
+    """
+    # 从当前文件的绝对路径开始
+    current_path = Path(__file__).resolve()
+
+    # 向上遍历所有父目录
+    for parent in current_path.parents:
+        if (parent / config_filename).exists():
+            return parent
+    
+    # 如果从当前文件路径向上没有找到，尝试从当前工作目录向上遍历
+    # 这在某些运行环境下（比如从子目录运行脚本）可能会有用
+    current_working_dir = Path(os.getcwd()).resolve()
+    for parent in current_working_dir.parents:
+        if (parent / config_filename).exists():
+            return parent
+
+    # 如果所有尝试都失败了，警告并返回当前工作目录
+    print(f"Warning: Project root (marked by '{config_filename}') not found. "
+          f"Defaulting to current working directory: {current_working_dir}")
+    return current_working_dir
+PROJECT_ROOT = find_project_root_by_config()
+general_config_yaml_path = PROJECT_ROOT / "general_config.yaml"
+with open(general_config_yaml_path, "r") as stream:
+    genconf = yaml.safe_load(stream)
+DEBUG  = genconf.get("debug", False)
+def dprint(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
+
 class Spatial457_utils:
     def __init__(self):
 
@@ -215,18 +256,28 @@ class Spatial457_utils:
     def is_correct_omni(self, level, answer, prediction):
         if "int" in level:
             try:
+                dprint(f"【DEBUG utils】[int branch] answ {answer} - pred {prediction}")
                 aint = int(answer)
                 pint = int(prediction)
-                return aint == pint
+                dprint(f"【DEBUG utils】[int branch] aint {aint} - pred {pint}")
+                if aint == pint:
+                    return True
+                else:
+                    return self.is_correct(answer, prediction)
+
             except ValueError:
-                return False
-        if "str" in level:
+                dprint(f"【DEBUG utils】[int branch] int error - use default is_correct")
+                return self.is_correct(answer, prediction)
+        if "str" in level or "int" in level:
             return self.is_correct(answer, prediction)
         if "float" in level:
+            dprint(f"【DEBUG utils】[float branch] answ {answer} - pred {prediction}")
             try:
                 y_hat = float(prediction)
                 y = float(answer)
+                dprint(f"【DEBUG utils】[float branch] y {y} - y_hat {y_hat}")
             except ValueError:
+                dprint(f"【DEBUG utils】[float branch] float error")
                 return 0.
             #MRA
             C = [i / 100 * 50 + 0.5 for i in range(1,10)]
@@ -235,4 +286,6 @@ class Spatial457_utils:
                 relative_error = abs(y_hat - y) / y
                 indicator = 1 if relative_error < (1 - theta) else 0
                 sum_indicator += indicator
-            return sum_indicator / len(C)
+            mra = sum_indicator / len(C)
+            dprint(f"【DEBUG utils】[float branch] mra {mra}")   
+            return mra
