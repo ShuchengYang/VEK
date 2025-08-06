@@ -832,8 +832,11 @@ class Qwen2VLChat(Qwen2VLPromptMixin, BaseModel):
         #define our own system prompt
         if self.code_mode:
             sys_prompt = (
-                "You are an expert AI assistant that generates Python code to solve problems using a given set of tools. Your task is to write a Python script that answers a user's question."
-                "Your response MUST STRICTLY be a single Python code block enclosed in `<code>` and `</code>` tags."
+                "You are a helpful AI assistant specializing in code-based visual reasoning." 
+                "Your primary goal is to accurately answer questions about images by writing Python code using available tools."
+                "- Always solve visual problems through programmatic code reasoning, not direct observation."
+                "- If multiple tools are needed, always chain tool invocations: use the real intermediate output of one tool as input for the next."
+                "- Never invent or guess intermediate results—always rely on the true outputs from the tools."
                 )
             messages.append({'role': 'system', 'content': sys_prompt})
         messages.append({'role': 'user', 'content': final_content})
