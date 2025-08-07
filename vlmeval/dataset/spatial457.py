@@ -65,6 +65,7 @@ class Spatial457(ImageBaseDataset):
         "Spatial457_TEST": "https://huggingface.co/datasets/ysc0034/spatial457_test/raw/main/Spatial457_TEST.tsv",
         "Spatial457_MINI": "https://huggingface.co/datasets/ysc0034/spatial457_700/resolve/main/Spatial457_700.tsv",
         "Spatial457_CLEAN": "https://huggingface.co/datasets/ysc0034/spatial457_clean/resolve/main/Spatial457_CLEAN.tsv",
+        "Spatial457_MCQ": "https://huggingface.co/datasets/ysc0034/spatial457_mcq/resolve/main/Spatial457_MCQ.tsv",
         #Omni-3D
         "Spatial457_OMNI": "https://huggingface.co/datasets/ysc0034/spatial457_omni/resolve/main/Spatial457_OMNI.tsv",
         "Spatial457_OT": "https://huggingface.co/datasets/ysc0034/spatial457_ot/resolve/main/Spatial457_OT.tsv"
@@ -75,6 +76,7 @@ class Spatial457(ImageBaseDataset):
         'Spatial457_TEST': "a7697250ea35a29b8e60463e567a6db0",
         'Spatial457_MINI': "5549f38cc5fabf4eb64970792e3bc35d",
         'Spatial457_CLEAN': "f9fe233b1280b5b94455b53d263ec2d7",
+        'Spatial457_MCQ': "6a802894414375de597ac5cab068edb1",
         #Omni-3D
         'Spatial457_OMNI': "68417133da9cc431e2c4f53ea99983c6",
         'Spatial457_OT': "d35cf35e874678ba38d52b37a6a1345f"
