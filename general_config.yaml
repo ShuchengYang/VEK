@@ -24,6 +24,12 @@ ckpt: ysc0034/exp_pure_code_spatial457_w_code_len_100steps
 # pucot100
 # ckpt: ysc0034/exp_pure_code_spatial457_w_code_think_len_100steps
 
+# eco100
+ckpt: ysc0034/purecode_457_w_code_think_length_multi_wo_exec_100steps
+
+# eco90
+ckpt: ysc0034/exp_pure_code_spatial457_w_code_think_len2_90steps
+
 
 #more checkpoints (sft)
 #tt
